@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bacarra-hub-pwa-v5-town-name-fix';
+const CACHE_NAME = 'bacarra-hub-pwa-v8-linehaul-cagayan-to-bacarra';
 const APP_SHELL = [
   './index.html',
   './manifest-bacarra-hub-round-v3.webmanifest',

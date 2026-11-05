@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta name="badoc-main-app" content="v70-cfr-capture-dual-save">
+<meta name="badoc-main-app" content="v71-linehaul-indexeddb-cloud-sync">
 <style id="opacity-vars-dark-defaults">:root{--op-3:.3;--op-35:.35;--op-38:.38;--op-45:.45;--op-5:.5;--op-55:.55;--op-58:.58;--op-6:.6;--op-62:.62;--op-65:.65;--op-7:.7;--op-72:.72;--op-75:.75;--op-8:.8;--op-85:.85;--op-88:.88;--op-9:.9;}</style>
 <style id="opacity-vars-light-overrides">html[data-theme="light"]{--op-3:0.72;--op-35:0.74;--op-38:0.752;--op-45:0.78;--op-5:0.8;--op-55:0.82;--op-58:0.832;--op-6:0.84;--op-62:0.848;--op-65:0.86;--op-7:0.88;--op-72:0.888;--op-75:0.9;--op-8:0.92;--op-85:0.94;--op-88:0.952;--op-9:0.96;}</style>
 
@@ -184,7 +184,8 @@ body{background:var(--c-05070a-bg);color:var(--c-f5f8fc-text)}
 #dashboard #deliveringBatchReconcileStatus.is-success{color:#16a34a}
 #dashboard #deliveringBatchReconcileStatus.is-error{color:#dc2626}
 @media(max-width:650px){#dashboard .parcel-spx-sync{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px}#dashboard .parcel-spx-sync .btn{font-size:12px;padding:7px 6px}}
-#linehaul .linehaul-tools{display:flex;gap:8px;align-items:center;margin:10px 0 12px}
+#linehaul .lh-route-scope-note{margin-top:5px;font-size:12px;color:#526579}.lh-route-scope-note b{color:#0876b9}
+.linehaul-tools{display:flex;gap:8px;align-items:center;margin:10px 0 12px}
 #linehaul .lh-upload{display:inline-flex;align-items:center;gap:7px;background:var(--c-0b69b7-bg);border:1px solid var(--c-168cff-border);color:var(--c-ffffff-text);padding:9px 12px;border-radius:8px;cursor:pointer;font-weight:700}
 #linehaul .lh-upload input{display:none}
 #linehaul .lh-upload span{font-size:17px}
@@ -5577,13 +5578,14 @@ body:not(.dark-mode) #kpi #kpiCategories .v3-kpi-card.kpi-status-a .kpi-target-r
   <div class="section">
     <div class="collapseHead">
       <h2 style="margin:0">Linehaul Tasks</h2>
+      <div class="lh-route-scope-note">Showing only Current Station: <b>Cagayan DC</b> → Destination Station: <b>Bacarra Hub</b></div>
       <span class="hint" id="linehaulStatus">0 tasks</span>
     </div>
     <div class="linehaul-tools">
       <label class="lh-upload"><span> Upload Exported TO List
         <input id="linehaulCsvFile" type="file" accept=".csv,text/csv">
       </label>
-      <button class="btn" id="syncLinehaulFromSPX" type="button" title="Export Pending Receive TO List from SPX and load it into BACARRA HUB">↻ Import incoming</button>
+      <button class="btn" id="syncLinehaulFromSPX" type="button" title="Export only Cagayan DC → Bacarra Hub Linehaul rows from SPX and load them into BACARRA HUB">↻ Import incoming</button>
       <button class="btn" id="clearLinehaul">Clear</button>
       <span id="linehaulSpxSyncStatus" class="hint" aria-live="polite"></span>
     </div>
@@ -6221,7 +6223,8 @@ const $=id=>document.getElementById(id);
 
 // Large parcel uploads are stored in IndexedDB instead of localStorage.
 const DB_NAME="BacarraParcelRoutingDashboardV1", DB_VERSION=1, STORE="batches";
-let dbReady=null;
+const LINEHAUL_DB_NAME="BacarraLinehaulStorageV1", LINEHAUL_DB_VERSION=1, LINEHAUL_STORE="records";
+let dbReady=null, linehaulDbReady=null;
 let memoryOnlyStorage=false;
 function openDB(){
   if(dbReady) return dbReady;
@@ -6236,6 +6239,26 @@ function openDB(){
     }catch(e){ console.warn("IndexedDB unavailable; using session memory storage.",e); memoryOnlyStorage=true; resolve(null); }
   });
   return dbReady;
+}
+function openLinehaulDB(){
+  if(linehaulDbReady)return linehaulDbReady;
+  linehaulDbReady=new Promise(resolve=>{
+    try{
+      if(!window.indexedDB){resolve(null);return;}
+      const req=indexedDB.open(LINEHAUL_DB_NAME,LINEHAUL_DB_VERSION);
+      req.onupgradeneeded=()=>{
+        if(!req.result.objectStoreNames.contains(LINEHAUL_STORE))req.result.createObjectStore(LINEHAUL_STORE,{keyPath:"key"});
+      };
+      req.onsuccess=()=>{
+        const db=req.result;
+        db.onversionchange=()=>{db.close();linehaulDbReady=null;};
+        resolve(db);
+      };
+      req.onerror=()=>{console.warn("Linehaul IndexedDB unavailable:",req.error);linehaulDbReady=null;resolve(null);};
+      req.onblocked=()=>{console.warn("Linehaul IndexedDB open blocked by another tab; cloud sync will continue.");linehaulDbReady=null;resolve(null);};
+    }catch(err){console.warn("Linehaul IndexedDB unavailable:",err);linehaulDbReady=null;resolve(null);}
+  });
+  return linehaulDbReady;
 }
 async function loadBatches(){
   try{
@@ -8334,7 +8357,7 @@ $("resetClearFloorRate").onclick=()=>{
   try{window.updateOperationProgress?.();}catch(e){}
   alert("Today's Clear Floor Rate has been reset to 0%.");
 };
-$("clearData").onclick=async()=>{if(confirm("Clear all uploaded data?\n\nThis will remove Upload Exported and Linehaul Task data from the cloud and this device. Your town/station settings will be kept.")){try{const db=await openDB();if(db)await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).clear();tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("aborted"))});batches=[];current=null;exceptionTrackingNumbers=[];saveExceptionTrackingNumbers();renderExceptionTracking();/* Linehaul Task uses localStorage, not the parcel IndexedDB store. */["badoc_linehaul_tasks_town_v1","badoc_linehaul_packed_rows_v1","badoc_linehaul_blank_packed_rows_v1","badoc_linehaul_export_total_v1","badoc_linehaul_export_unique_v1"].forEach(k=>localStorage.removeItem(k));if(typeof linehaulTasks!=="undefined")linehaulTasks=[];const lhFile=document.getElementById("linehaulCsvFile");if(lhFile)lhFile.value="";const lhBody=document.getElementById("linehaulBody");if(lhBody)lhBody.innerHTML='<tr><td colspan="5" class="empty">No linehaul task and town data.</td></tr>';const lhStatus=document.getElementById("linehaulStatus");if(lhStatus)lhStatus.textContent="0 tasks";const lhTotal=document.getElementById("lhKpiTotal");if(lhTotal)lhTotal.textContent="0";const lhDoid=document.getElementById("lhKpiDoid");if(lhDoid)lhDoid.textContent="0";if(typeof renderLinehaul==="function")renderLinehaul();if(typeof window.__badocClearAllSharedData==="function")await window.__badocClearAllSharedData();render();alert("All uploaded files/data cleared from Upload Exported and Linehaul Task.")}catch(err){console.error("Clear local data failed:",err);alert("Could not clear all uploaded data.")}}};
+$("clearData").onclick=async()=>{if(confirm("Clear all uploaded data?\n\nThis will remove Upload Exported and Linehaul Task data from the cloud and this device. Your town/station settings will be kept.")){try{const db=await openDB();if(db)await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).clear();tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error("aborted"))});batches=[];current=null;exceptionTrackingNumbers=[];saveExceptionTrackingNumbers();renderExceptionTracking();if(typeof linehaulTasks!=="undefined")linehaulTasks=[];await clearLinehaulStorage();const lhFile=document.getElementById("linehaulCsvFile");if(lhFile)lhFile.value="";const lhBody=document.getElementById("linehaulBody");if(lhBody)lhBody.innerHTML='<tr><td colspan="5" class="empty">No linehaul task and town data.</td></tr>';const lhStatus=document.getElementById("linehaulStatus");if(lhStatus)lhStatus.textContent="0 tasks";const lhTotal=document.getElementById("lhKpiTotal");if(lhTotal)lhTotal.textContent="0";const lhDoid=document.getElementById("lhKpiDoid");if(lhDoid)lhDoid.textContent="0";if(typeof renderLinehaul==="function")renderLinehaul();if(typeof window.__badocClearAllSharedData==="function")await window.__badocClearAllSharedData();render();alert("All uploaded files/data cleared from Upload Exported and Linehaul Task.")}catch(err){console.error("Clear local data failed:",err);alert("Could not clear all uploaded data.")}}};
 
 /*
  V1.10 KPI CONNECTION
@@ -8713,20 +8736,118 @@ uploadDrop?.addEventListener("drop",e=>{
 
 
 
-const LH_KEY="badoc_linehaul_tasks_town_v1";
-const LH_PACKED_KEY="badoc_linehaul_packed_rows_v1";
-const LH_BLANK_PACKED_KEY="badoc_linehaul_blank_packed_rows_v1";
-const LH_EXPORT_TOTAL_KEY="badoc_linehaul_export_total_v1";
-const LH_EXPORT_UNIQUE_KEY="badoc_linehaul_export_unique_v1";
+// Legacy localStorage keys are read once for migration only. New Linehaul data
+// is stored in the Bacarra IndexedDB store so large SPX task imports cannot hit
+// the browser's 5–10 MB localStorage quota.
+const LEGACY_LH_KEYS={
+  tasks:"badoc_linehaul_tasks_town_v1",
+  packed:"badoc_linehaul_packed_rows_v1",
+  blankPacked:"badoc_linehaul_blank_packed_rows_v1",
+  exportTotal:"badoc_linehaul_export_total_v1",
+  exportUnique:"badoc_linehaul_export_unique_v1"
+};
+const LH_TASKS_RECORD="tasks";
+const LH_PACKED_RECORD="packedRows";
+const LH_BLANK_PACKED_RECORD="blankPackedRows";
+const LH_EXPORT_STATS_RECORD="exportStats";
 let linehaulTasks=[];
-function loadLinehaul(){
-  try{
-    linehaulTasks=JSON.parse(localStorage.getItem(LH_KEY)||"[]");
-    if(!Array.isArray(linehaulTasks))linehaulTasks=[];
-    linehaulTasks=linehaulTasks.filter(x=>x && (String(x.id||"").trim() || x.blank));
-  }catch(e){linehaulTasks=[]}
+let linehaulDbWriteQueue=Promise.resolve();
+function readLinehaulRecord(key){
+  return openLinehaulDB().then(db=>{
+    if(!db)throw new Error("IndexedDB is unavailable; Linehaul data cannot be stored locally.");
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(LINEHAUL_STORE,"readonly");
+      const req=tx.objectStore(LINEHAUL_STORE).get(key);
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error||new Error("Linehaul IndexedDB read failed."));
+      tx.onabort=()=>reject(tx.error||new Error("Linehaul IndexedDB read aborted."));
+    });
+  });
 }
-function saveLinehaul(){localStorage.setItem(LH_KEY,JSON.stringify(linehaulTasks))}
+function writeLinehaulRecords(records){
+  const snapshot=(Array.isArray(records)?records:[]).map(x=>({key:String(x.key),value:x.value,updatedAt:Date.now()}));
+  const run=async()=>{
+    const db=await openLinehaulDB();
+    if(!db)throw new Error("IndexedDB is unavailable; Linehaul data cannot be stored locally.");
+    await new Promise((resolve,reject)=>{
+      let tx;
+      try{
+        tx=db.transaction(LINEHAUL_STORE,"readwrite");
+        const store=tx.objectStore(LINEHAUL_STORE);
+        snapshot.forEach(record=>store.put(record));
+      }catch(err){reject(err);return;}
+      tx.oncomplete=resolve;
+      tx.onerror=()=>reject(tx.error||new Error("Linehaul IndexedDB write failed."));
+      tx.onabort=()=>reject(tx.error||new Error("Linehaul IndexedDB write aborted."));
+    });
+    return true;
+  };
+  linehaulDbWriteQueue=linehaulDbWriteQueue.catch(()=>{}).then(run);
+  return linehaulDbWriteQueue;
+}
+async function clearLinehaulStorage(){
+  linehaulDbWriteQueue=linehaulDbWriteQueue.catch(()=>{}).then(async()=>{
+    const db=await openLinehaulDB();
+    if(db)await new Promise((resolve,reject)=>{
+      let tx;
+      try{tx=db.transaction(LINEHAUL_STORE,"readwrite");tx.objectStore(LINEHAUL_STORE).clear();}
+      catch(err){reject(err);return;}
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error("Linehaul IndexedDB clear failed."));tx.onabort=()=>reject(tx.error||new Error("Linehaul IndexedDB clear aborted."));
+    });
+    Object.values(LEGACY_LH_KEYS).forEach(key=>{try{localStorage.removeItem(key)}catch{}});
+  });
+  return linehaulDbWriteQueue;
+}
+async function loadLinehaul(){
+  const db=await openLinehaulDB();
+  if(!db){linehaulTasks=[];return false;}
+  const saved=await readLinehaulRecord(LH_TASKS_RECORD);
+  if(saved&&Array.isArray(saved.value)){
+    linehaulTasks=saved.value.filter(x=>x&&(String(x.id||"").trim()||x.blank));
+    // The IndexedDB copy is authoritative; remove any stale oversized copy.
+    try{localStorage.removeItem(LEGACY_LH_KEYS.tasks)}catch{}
+  }else{
+    // One-time, loss-safe migration: remove the old key only after IndexedDB
+    // confirms the complete task array was written successfully.
+    let legacy=null;
+    try{const raw=localStorage.getItem(LEGACY_LH_KEYS.tasks);if(raw)legacy=JSON.parse(raw)}catch(err){console.warn("Legacy Linehaul task migration read failed:",err)}
+    if(Array.isArray(legacy)){
+      const clean=legacy.filter(x=>x&&(String(x.id||"").trim()||x.blank));
+      await writeLinehaulRecords([{key:LH_TASKS_RECORD,value:clean}]);
+      linehaulTasks=clean;
+      try{localStorage.removeItem(LEGACY_LH_KEYS.tasks)}catch{}
+    }else linehaulTasks=[];
+  }
+  // Migrate the older packed-row caches and small export counters as well.
+  const migrations=[
+    [LEGACY_LH_KEYS.packed,LH_PACKED_RECORD],
+    [LEGACY_LH_KEYS.blankPacked,LH_BLANK_PACKED_RECORD],
+    [LEGACY_LH_KEYS.exportTotal,"legacyExportTotal"],
+    [LEGACY_LH_KEYS.exportUnique,"legacyExportUnique"]
+  ];
+  for(const [legacyKey,recordKey] of migrations){
+    try{
+      const present=await readLinehaulRecord(recordKey);
+      if(present){localStorage.removeItem(legacyKey);continue;}
+      const raw=localStorage.getItem(legacyKey);
+      if(raw===null)continue;
+      let value;
+      try{value=JSON.parse(raw)}catch{value=raw;}
+      await writeLinehaulRecords([{key:recordKey,value}]);
+      localStorage.removeItem(legacyKey);
+    }catch(err){console.warn("Legacy Linehaul cache migration deferred:",legacyKey,err);}
+  }
+  return true;
+}
+function saveLinehaul(){
+  const snapshot=(Array.isArray(linehaulTasks)?linehaulTasks:[]).map(task=>task);
+  return writeLinehaulRecords([{key:LH_TASKS_RECORD,value:snapshot}]).catch(err=>{
+    console.error("Linehaul IndexedDB save failed; cloud sync may still complete:",err);
+    const el=document.getElementById("linehaulSpxSyncStatus");
+    if(el){el.textContent="Local storage warning — cloud sync will continue";el.classList.add("is-error");}
+    return false;
+  });
+}
 function lhNum(v){const n=parseFloat(String(v??"").replace(/,/g,"").trim());return Number.isFinite(n)?n:0}
 function lhHeaderIndex(headers,names){
   const clean=s=>String(s??"").toLowerCase().replace(/[^a-z0-9]/g,"");
@@ -8754,7 +8875,12 @@ function parseLinehaulCSV(text){
   const data=rows.slice(1);
   const idx=(names)=>{
     const clean=s=>String(s??"").toLowerCase().replace(/[^a-z0-9]/g,"");
-    return h.map(clean).findIndex(x=>names.some(n=>{const y=clean(n);return x===y||x.includes(y)||y.includes(x)}));
+    const headers=h.map(clean), wanted=names.map(clean);
+    // Prefer exact header names. This prevents "Current Station Received Time"
+    // from being mistaken for the actual "Current Station" column.
+    const exact=headers.findIndex(x=>wanted.includes(x));
+    if(exact>=0)return exact;
+    return headers.findIndex(x=>wanted.some(y=>y&&x.includes(y)));
   };
   const ti=idx(["Line Haul Task ID","Linehaul Task ID","Line Haul Task"]);
   const spxi=idx(["SPX TN","SPX Tracking Number"]);
@@ -8762,6 +8888,8 @@ function parseLinehaulCSV(text){
   const qi=idx(["TO Include Order Quantity","TO Include Order quantity","Include Order Quantity","Order Quantity"]);
   const ri=idx(["TO Received Order Quantity","TO Received Order quantity","Received Order Quantity","Received Quantity"]);
   const si=idx(["TO Status","Status","Order Status"]);
+  const csi=idx(["Current Station","Current Station Name","CurrentStation"]);
+  const dsi=idx(["Destination Station","Destination Station Name","DestinationStation"]);
   if(ti<0)throw Error("Line Haul Task ID was not found in the exported file.");
   if(spxi<0)throw Error("SPX TN was not found in the exported file.");
 
@@ -8779,7 +8907,9 @@ function parseLinehaulCSV(text){
     if(si>=0&&String(r[si]??"").trim())g.statuses.push(String(r[si]).trim());
     g.exportRows.push({
       spxTN,to,qty:qi>=0?lhNum(r[qi]):0,received:ri>=0?lhNum(r[ri]):0,
-      status:si>=0?String(r[si]??"").trim():""
+      status:si>=0?String(r[si]??"").trim():"",
+      currentStation:csi>=0?String(r[csi]??"").trim():"",
+      destinationStation:dsi>=0?String(r[dsi]??"").trim():""
     });
   });
 
@@ -8801,6 +8931,115 @@ function trackingFromParcel(r){
 }
 function orderFromParcel(r){
   return String(r?.["Order ID"]??"").trim();
+}
+
+// BACARRA Linehaul Task scope: only parcels whose Parcel Count record says
+// Current Station = Cagayan DC AND Destination Station = Bacarra Hub.
+// The SPX Linehaul export is task-oriented, so match its SPX TN back to the
+// Parcel Count row to read the authoritative station fields.
+const LINEHAUL_REQUIRED_CURRENT_STATION = "CAGAYAN DC";
+const LINEHAUL_REQUIRED_DESTINATION_STATION = "BACARRA HUB";
+function linehaulFieldValue(row,names){
+  if(!row||typeof row!=="object")return "";
+  for(const name of names){
+    if(row[name]!==undefined&&row[name]!==null&&String(row[name]).trim()!=="")return String(row[name]).trim();
+  }
+  const wanted=new Set(names.map(x=>String(x).toLowerCase().replace(/[^a-z0-9]/g,"")));
+  for(const [key,value] of Object.entries(row)){
+    const clean=String(key).toLowerCase().replace(/[^a-z0-9]/g,"");
+    if(wanted.has(clean)&&value!==undefined&&value!==null&&String(value).trim()!=="")return String(value).trim();
+  }
+  return "";
+}
+function buildLinehaulParcelStationIndex(parcelRows){
+  const index=new Map();
+  (Array.isArray(parcelRows)?parcelRows:[]).forEach(row=>{
+    const keys=[
+      row?.["Order ID"],row?.["SLS Tracking Number"],row?.["SPX TN"],
+      row?.["SPX Tracking Number"],row?.["Tracking Number"]
+    ];
+    keys.forEach(value=>{
+      const key=normJoin(value);
+      if(key&&!index.has(key))index.set(key,row);
+    });
+  });
+  return index;
+}
+function linehaulRowMatchesRequiredStations(exportRow,parcelIndex){
+  const tn=exportRow?.spxTN??exportRow?.["SPX TN"]??exportRow?.["SPX Tracking Number"]??exportRow?.orderId??exportRow?.["Order ID"]??"";
+  const parcel=parcelIndex.get(normJoin(tn));
+  // Prefer station columns included directly in the SPX export; fill missing
+  // values from the matching Parcel Count record.
+  const currentStation=linehaulFieldValue(exportRow,["Current Station","Current Station Name","CurrentStation"]) ||
+    linehaulFieldValue(parcel,["Current Station","Current Station Name","CurrentStation"]);
+  const destinationStation=linehaulFieldValue(exportRow,["Destination Station","Destination Station Name","DestinationStation"]) ||
+    linehaulFieldValue(parcel,["Destination Station","Destination Station Name","DestinationStation"]);
+  return normJoin(currentStation)===normJoin(LINEHAUL_REQUIRED_CURRENT_STATION) &&
+    normJoin(destinationStation)===normJoin(LINEHAUL_REQUIRED_DESTINATION_STATION);
+}
+function filterLinehaulTasksByRequiredStations(tasks,parcelRows){
+  const parcelIndex=buildLinehaulParcelStationIndex(parcelRows);
+  const result={tasks:[],readRows:0,acceptedRows:0,rejectedRows:0};
+  (Array.isArray(tasks)?tasks:[]).forEach(task=>{
+    if(!task||task.blank)return;
+    const original=Array.isArray(task.exportRows)?task.exportRows:[];
+    result.readRows+=original.length;
+    const kept=original.filter(row=>linehaulRowMatchesRequiredStations(row,parcelIndex));
+    result.acceptedRows+=kept.length;
+    result.rejectedRows+=original.length-kept.length;
+    if(!kept.length)return;
+    const exportTOs=[...new Set(kept.map(r=>String(r?.to??r?.["TO Number"]??"").trim()).filter(Boolean))];
+    const statuses=kept.map(r=>String(r?.status??r?.["TO Status"]??"").trim()).filter(Boolean);
+    result.tasks.push({
+      ...task,
+      exportRows:kept,
+      exportTOs,
+      exportQty:kept.reduce((sum,r)=>sum+lhNum(r?.qty??r?.["TO Include Order Quantity"]??0),0),
+      exportReceived:kept.reduce((sum,r)=>sum+lhNum(r?.received??r?.["TO Received Order Quantity"]??0),0),
+      status:statuses.length?(new Set(statuses).size===1?statuses[0]:"In Progress"):task.status
+    });
+  });
+  return result;
+}
+function parseLinehaulCsvMatrix(text){
+  const rows=[];let row=[],cell="",quoted=false;
+  text=String(text||"").replace(/^\uFEFF/,"");
+  for(let i=0;i<text.length;i++){
+    const c=text[i],next=text[i+1];
+    if(c==='"'){
+      if(quoted&&next==='"'){cell+='"';i++;}
+      else quoted=!quoted;
+    }else if(c===','&&!quoted){row.push(cell);cell="";}
+    else if((c==='\n'||c==='\r')&&!quoted){
+      if(c==='\r'&&next==='\n')i++;
+      row.push(cell);cell="";
+      if(row.some(v=>String(v).trim()!==""))rows.push(row);
+      row=[];
+    }else cell+=c;
+  }
+  if(cell!==""||row.length){row.push(cell);if(row.some(v=>String(v).trim()!==""))rows.push(row);}
+  return rows;
+}
+function escapeLinehaulCsvCell(value){
+  const text=String(value??"");
+  return /[",\r\n]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;
+}
+function filterLinehaulCsvTextByRequiredStations(text,parcelRows){
+  const matrix=parseLinehaulCsvMatrix(text);
+  if(matrix.length<2)throw Error("The Linehaul export is empty.");
+  const headers=matrix[0].map(v=>String(v??"").trim());
+  const clean=v=>String(v??"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  const spxIndex=headers.findIndex(h=>["spxtn","spxtrackingnumber","spxtnid","spxtrackingnumberid","trackingnumber"].includes(clean(h)));
+  if(spxIndex<0)throw Error("SPX TN was not found in the Linehaul export.");
+  const parcelIndex=buildLinehaulParcelStationIndex(parcelRows);
+  const kept=[matrix[0]];
+  for(const row of matrix.slice(1)){
+    const record=Object.fromEntries(headers.map((h,i)=>[h,row[i]??""]));
+    record.spxTN=row[spxIndex]??"";
+    if(linehaulRowMatchesRequiredStations(record,parcelIndex))kept.push(row);
+  }
+  if(kept.length===1)throw Error("No Linehaul rows matched Current Station = Cagayan DC and Destination Station = Bacarra Hub. Sync the Parcel Count data containing matching Order IDs and station fields, then retry.");
+  return kept.map(row=>row.map(escapeLinehaulCsvCell).join(",")).join("\r\n")+"\r\n";
 }
 
 /* Exact sample-file relationship:
@@ -9225,7 +9464,7 @@ function renderLinehaulCore(){
       allArrivalBox.addEventListener("change",()=>{
         const tasks=(Array.isArray(linehaulTasks)?linehaulTasks:[]).filter(t=>t&&!t.blank&&!t.cleared&&String(t.id||"").trim());
         tasks.forEach(t=>{t.arrivingInTime=allArrivalBox.checked;});
-        try{saveLinehaul()}catch(err){console.warn("Could not save all linehaul arrival choices locally:",err)}
+        saveLinehaul().catch(err=>console.warn("Could not save all linehaul arrival choices locally:",err));
         if(typeof render==="function")render();
         if(typeof window.updateOperationProgress==="function")window.updateOperationProgress();
         if(typeof window.__badocCloudSaveLinehaulArrivalFlags==="function"){
@@ -9249,7 +9488,7 @@ function renderLinehaulCore(){
       const task=linehaulTasks.find(x=>!x?.blank&&String(x?.id||"").trim()===taskId);
       if(!task)return;
       task.arrivingInTime=!!checkbox.checked;
-      try{saveLinehaul()}catch(err){console.warn("Could not save linehaul arrival choice locally:",err)}
+      saveLinehaul().catch(err=>console.warn("Could not save linehaul arrival choice locally:",err));
       // Update the master incoming-volume displays immediately. The global
       // incoming-volume toggle in each menu remains in control of whether
       // the selected linehaul volume is added to its base totals.
@@ -9338,18 +9577,22 @@ function renderLinehaul(){
 }
 
 async function importLinehaulCsvText(text,fileName="Uploaded TO List.csv",source="file"){
-  const imported=parseLinehaulCSV(text);
-  if(!imported.length)throw Error("No Line Haul Task ID / SPX TN values were found.");
+  const parsedTasks=parseLinehaulCSV(text);
+  if(!parsedTasks.length)throw Error("No Line Haul Task ID / SPX TN values were found.");
+  const existingRouteFilter=filterLinehaulTasksByRequiredStations(linehaulTasks,current?.rows||[]);
+  linehaulTasks=existingRouteFilter.tasks;
+  const routeFilter=filterLinehaulTasksByRequiredStations(parsedTasks,current?.rows||[]);
+  const imported=routeFilter.tasks;
+  if(!imported.length){
+    await saveLinehaul();
+    renderLinehaul();
+    throw Error(`No Linehaul rows matched the required route. This page only accepts Current Station = Cagayan DC and Destination Station = Bacarra Hub. ${routeFilter.rejectedRows.toLocaleString()} row(s) were excluded. Make sure Parcel Count data is loaded and has matching Order ID / SPX TN values with both station fields.`);
+  }
   const exportedRows=imported.flatMap(t=>t.exportRows||[]);
   const exportedRowCount=exportedRows.length;
   const exportedUniqueSPX=new Set(exportedRows.map(r=>normJoin(r?.spxTN)).filter(Boolean)).size;
-  localStorage.setItem(LH_EXPORT_TOTAL_KEY,String(exportedRowCount));
-  localStorage.setItem(LH_EXPORT_UNIQUE_KEY,String(exportedUniqueSPX));
-
   const allRows=imported.flatMap(t=>t.exportRows||[]);
   const blankRows=imported.filter(t=>t.blank).flatMap(t=>t.exportRows||[]);
-  localStorage.setItem(LH_PACKED_KEY,JSON.stringify(allRows));
-  localStorage.setItem(LH_BLANK_PACKED_KEY,JSON.stringify(blankRows));
 
   imported.forEach(task=>{
     if(task.blank){
@@ -9374,7 +9617,18 @@ async function importLinehaulCsvText(text,fileName="Uploaded TO List.csv",source
     map.set(key,x);
   });
   linehaulTasks=[...map.values()];
-  saveLinehaul();
+  // Persist locally in IndexedDB before returning to the SPX bridge handler.
+  // The bridge handler then uploads the original CSV to Supabase as before.
+  await writeLinehaulRecords([
+    {key:LH_TASKS_RECORD,value:linehaulTasks},
+    {key:LH_PACKED_RECORD,value:allRows},
+    {key:LH_BLANK_PACKED_RECORD,value:blankRows},
+    {key:LH_EXPORT_STATS_RECORD,value:{total:exportedRowCount,unique:exportedUniqueSPX}}
+  ]).catch(err=>{
+    console.warn("Local Linehaul IndexedDB write failed; cloud sync will still be attempted:",err);
+    const el=document.getElementById("linehaulSpxSyncStatus");
+    if(el){el.textContent="Local storage warning — attempting cloud sync";el.classList.add("is-error");}
+  });
   renderLinehaul();
   if(typeof window.updateOperationProgress==="function") window.updateOperationProgress();
   setTimeout(()=>window.updateOperationProgress?.(),50);
@@ -9383,14 +9637,14 @@ async function importLinehaulCsvText(text,fileName="Uploaded TO List.csv",source
   const matched=imported.reduce((s,x)=>s+(x.matchedCount||0),0);
   const total=imported.reduce((s,x)=>s+(x.exportRows?.length||0),0);
   const label=source==="spx"?"Synced":"Imported";
-  return {importedCount:imported.length,matched,total,fileName,label};
+  return {importedCount:imported.length,matched,total,fileName,label,readRows:routeFilter.readRows,excludedRows:routeFilter.rejectedRows};
 }
 
 $("linehaulCsvFile")?.addEventListener("change",async e=>{
   const f=e.target.files?.[0];if(!f)return;
   try{
     const result=await importLinehaulCsvText(await f.text(),f.name,"file");
-    alert(`${result.label} ${result.importedCount} linehaul task${result.importedCount===1?"":"s"}. Matched ${result.matched.toLocaleString()} of ${result.total.toLocaleString()} SPX TNs to Parcel Record Order IDs.`);
+    alert(`${result.label} ${result.importedCount} linehaul task${result.importedCount===1?"":"s"}. Accepted ${result.total.toLocaleString()} row(s) for Current Station = Cagayan DC and Destination Station = Bacarra Hub. Excluded ${Number(result.excludedRows||0).toLocaleString()} row(s). Matched ${result.matched.toLocaleString()} SPX TN(s) to Parcel Count records.`);
   }catch(err){
     alert("Could not read this exported file: "+err.message);
     console.error(err);
@@ -9696,7 +9950,7 @@ async function beginLinehaulSpxBridgeSync(){
   if(btn?.dataset.busy==="1")return;
   if(btn)btn.dataset.busy="1";
   if(btn)btn.disabled=true;
-  window.__badocOperationModalStart?.("Sync Linehaul from SPX","Connecting to SPX and requesting linehaul tasks…");
+  window.__badocOperationModalStart?.("Sync Cagayan DC → Bacarra Hub Linehaul from SPX","Connecting to SPX and requesting linehaul tasks…");
   setLinehaulSpxSyncStatus("Connecting to SPX…","working");
   postBadocSpxMessage("BADOC_START_LINEHAUL_SYNC");
 }
@@ -9828,8 +10082,8 @@ window.addEventListener("message",async event=>{
         await window.__badocCloudUploadLinehaulText(data.csvText,data.fileName||"inbound_to_from_spx.csv");
       }
       setLinehaulSpxSyncStatus(`Synced ${result.total.toLocaleString()} rows · ${result.importedCount} task${result.importedCount===1?"":"s"}`,"success");
-      window.__badocOperationModalFinish?.("Linehaul Sync Complete","SPX linehaul tasks loaded successfully.",[
-        ["Tasks",result.importedCount.toLocaleString()],["Rows",result.total.toLocaleString()],["Matched SPX TNs",result.matched.toLocaleString()]
+      window.__badocOperationModalFinish?.("Linehaul Sync Complete","Only rows with Current Station = Cagayan DC and Destination Station = Bacarra Hub were loaded.",[
+        ["Tasks",result.importedCount.toLocaleString()],["Accepted rows",result.total.toLocaleString()],["Excluded rows",Number(result.excludedRows||0).toLocaleString()],["Matched SPX TNs",result.matched.toLocaleString()], ["Route filter","Cagayan DC → Bacarra Hub"]
       ],"success");
     }catch(err){
       console.error("SPX Linehaul CSV import failed:",err);
@@ -9846,15 +10100,10 @@ $("syncParcelDeliveryFromSPX")?.addEventListener("click",beginParcelDeliverySpxB
 $("reconcileDeliveringViaBatchSearch")?.addEventListener("click",beginDeliveringBatchReconcile);
 $("syncLinehaulFromSPX")?.addEventListener("click",beginLinehaulSpxBridgeSync);
 
-$("clearLinehaul")?.addEventListener("click",()=>{
+$("clearLinehaul")?.addEventListener("click",async()=>{
   if(linehaulTasks.length&&confirm("Clear all linehaul tasks?")){
     linehaulTasks=[];
-    localStorage.removeItem(LH_KEY);
-    localStorage.removeItem(LH_PACKED_KEY);
-    localStorage.removeItem(LH_BLANK_PACKED_KEY);
-    localStorage.removeItem(LH_EXPORT_TOTAL_KEY);
-    localStorage.removeItem(LH_EXPORT_UNIQUE_KEY);
-    saveLinehaul();
+    try{await clearLinehaulStorage();}catch(err){console.error("Local Linehaul clear failed:",err);alert("Could not clear the local Linehaul cache. Your cloud data was not changed.");return;}
     const unmappedHost=$("lhUnmappedSpxCardHost");
     if(unmappedHost){unmappedHost.classList.remove("v10-show-unmapped");unmappedHost.innerHTML="";}
     renderLinehaul();
@@ -10326,14 +10575,7 @@ window.DASHBOARD_V2_READY = true;
   }
   async function clearLocalLinehaul(){
     if(typeof linehaulTasks!=="undefined")linehaulTasks=[];
-    if(typeof saveLinehaul==="function")saveLinehaul();
-    [
-      typeof LH_KEY!=="undefined"?LH_KEY:"badoc_linehaul_tasks_town_v1",
-      typeof LH_PACKED_KEY!=="undefined"?LH_PACKED_KEY:"badoc_linehaul_packed_rows_v1",
-      typeof LH_BLANK_PACKED_KEY!=="undefined"?LH_BLANK_PACKED_KEY:"badoc_linehaul_blank_packed_rows_v1",
-      typeof LH_EXPORT_TOTAL_KEY!=="undefined"?LH_EXPORT_TOTAL_KEY:"badoc_linehaul_export_total_v1",
-      typeof LH_EXPORT_UNIQUE_KEY!=="undefined"?LH_EXPORT_UNIQUE_KEY:"badoc_linehaul_export_unique_v1"
-    ].forEach(k=>{try{localStorage.removeItem(k)}catch{}});
+    await clearLinehaulStorage();
     const f=document.getElementById("linehaulCsvFile");if(f)f.value="";
     if(typeof renderLinehaul==="function")renderLinehaul();
     if(typeof renderLinehaulKpis==="function")renderLinehaulKpis();
@@ -10362,9 +10604,11 @@ window.DASHBOARD_V2_READY = true;
         if(parsedFlags&&typeof parsedFlags==="object"&&!Array.isArray(parsedFlags))sharedArrivalFlags=parsedFlags;
       }
     }catch(err){console.warn("Linehaul arrival flags load:",err)}
-    const previousTasks=new Map((Array.isArray(linehaulTasks)?linehaulTasks:[]).map(x=>[x.blank?"__BLANK_LINEHAUL__":String(x.id||"").trim(),x]));
-    const imported=parseLinehaulCSV(await b.text());
-    if(!imported.length)return;
+    const existingRouteFilter=filterLinehaulTasksByRequiredStations(linehaulTasks,current?.rows||[]);
+    const previousTasks=new Map(existingRouteFilter.tasks.map(x=>[x.blank?"__BLANK_LINEHAUL__":String(x.id||"").trim(),x]));
+    const parsedTasks=parseLinehaulCSV(await b.text());
+    const routeFilter=filterLinehaulTasksByRequiredStations(parsedTasks,current?.rows||[]);
+    const imported=routeFilter.tasks;
     imported.forEach(task=>{
       const id=String(task?.id||"").trim();
       const key=task.blank?"__BLANK_LINEHAUL__":id;
@@ -10380,10 +10624,10 @@ window.DASHBOARD_V2_READY = true;
         item.x.town=town;item.x.status=item.x.status||task.status;
       }));
     });
-    const existing=new Map((Array.isArray(linehaulTasks)?linehaulTasks:[]).map(x=>[x.blank?"__BLANK_LINEHAUL__":x.id,x]));
+    const existing=new Map(existingRouteFilter.tasks.map(x=>[x.blank?"__BLANK_LINEHAUL__":x.id,x]));
     imported.forEach(x=>existing.set(x.blank?"__BLANK_LINEHAUL__":x.id,x));
     linehaulTasks=[...existing.values()];
-    if(typeof saveLinehaul==="function")saveLinehaul();
+    if(typeof saveLinehaul==="function")await saveLinehaul();
     if(typeof renderLinehaul==="function")renderLinehaul();
     if(typeof renderLinehaulKpis==="function")renderLinehaulKpis();
     if(typeof render==="function")render();
@@ -10534,7 +10778,9 @@ window.DASHBOARD_V2_READY = true;
       await new Promise(r=>setTimeout(r,100));
     }
     if(!started) throw Error("Shared cloud sync is not ready.");
-    const blob=new Blob([String(text||"")],{type:"text/csv"});
+    // Publish only the approved Bacarra inbound route, not the unfiltered SPX export.
+    const filteredText=filterLinehaulCsvTextByRequiredStations(String(text||""),current?.rows||[]);
+    const blob=new Blob([filteredText],{type:"text/csv"});
     return uploadShared("linehaul",blob);
   };
 
@@ -10762,7 +11008,12 @@ window.DASHBOARD_V2_READY = true;
   },true);
   document.getElementById("linehaulCsvFile")?.addEventListener("change",e=>{
     const f=e.target.files?.[0];if(!f||!started)return;
-    uploadShared("linehaul",f).catch(err=>{console.error(err);status("Cloud upload failed: "+err.message)});
+    (async()=>{
+      const originalText=await f.text();
+      const filteredText=filterLinehaulCsvTextByRequiredStations(originalText,current?.rows||[]);
+      const filteredFile=new Blob([filteredText],{type:"text/csv"});
+      await uploadShared("linehaul",filteredFile);
+    })().catch(err=>{console.error(err);status("Linehaul cloud upload blocked: "+err.message)});
   },true);
 
   // Clear Riders Data from Bacarra Supabase. Deleting the object (rather than
@@ -10995,12 +11246,15 @@ window.DASHBOARD_V2_READY = true;
     if(started)return;started=true;
     try{
       supa();
-      // Cloud is authoritative. Do not restore persisted uploads on startup.
-      // Start empty, then populate only after the cloud state is checked.
-      if(!uploadLocalDirty){batches=[];current=null;}
-      // If a Linehaul upload was locally marked dirty, preserve it across a
-      // temporary sync failure. Otherwise cloud state remains authoritative.
+      // Migrate large legacy Linehaul localStorage values into IndexedDB before
+      // the first cloud pull. Migration removes each old key only after the
+      // IndexedDB transaction commits successfully.
+      try{await loadLinehaul();}catch(migrationError){console.warn("Linehaul local migration deferred; cloud sync will continue:",migrationError);}
+      // Preserve the prior startup rule: the cloud Linehaul CSV is authoritative
+      // unless this device has an explicitly pending upload. The migrated IDB
+      // snapshot remains available for recovery until a confirmed cloud pull.
       if(!linehaulLocalDirty)linehaulTasks=[];
+      if(!uploadLocalDirty){batches=[];current=null;}
       render();renderLinehaul();
       ensureRealtime().catch(e=>console.warn(e));
       setTimeout(async()=>{await retryPendingUploadState();await retryPendingLinehaulState();await applyRiderSelections().catch(()=>{});await pull().catch(()=>{});},150);
@@ -13277,10 +13531,8 @@ document.getElementById("eodRefreshBtn")?.addEventListener("click",load);load();
     if(typeof batches!=="undefined")batches=[];
     if(typeof current!=="undefined")current=null;
     if(typeof linehaulTasks!=="undefined")linehaulTasks=[];
-    ["batches","currentBatch","current",
-     "badoc_linehaul_tasks_town_v1","badoc_linehaul_packed_rows_v1",
-     "badoc_linehaul_blank_packed_rows_v1","badoc_linehaul_export_total_v1",
-     "badoc_linehaul_export_unique_v1"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
+    try{await clearLinehaulStorage();}catch(e){console.warn("2 AM Linehaul IndexedDB reset:",e)}
+    ["batches","currentBatch","current"].forEach(k=>{try{localStorage.removeItem(k)}catch(e){}});
     // Clear exception/exemption tracking numbers at the 2:00 AM daily reset too.
     try{
       if(typeof exceptionTrackingNumbers!=="undefined"){
