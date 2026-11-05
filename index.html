@@ -6058,8 +6058,115 @@ UPLOAD TO PARCEL COUNT</div>
 // This build automatically falls back to session-memory storage so CSV upload and multi-upload still work.
 // Official town assignments from the latest Bacarra Hub workbook.
 // Zone IDs are intentionally excluded from the dashboard until requested.
-const BACARRA_TOWNS_BY_AREA = {"BACARRA":["Taguipuro","Cabaruan","San Roque 1","San Roque 2","San Simon","San Andres 1","San Andres 2","San Pedro","Sto. Cristo 1","Sto. Cristo 2","San Agustin","Pipias","Cabulalaan","Natba","Calioet Libong","Cadaratan","Pasngal","Cabusligan","Pungto","Pasiocan","Buyon","Sangil","Ganagan","Casilian","Pulangi","Libtong","Tambidao","Corocor","Tuburan","Macupit","Paninaan","Duripes","Teppang","Bani","San Gabriel 1","San Gabriel 2","Nambaran","Sta. Rita","Sta. Filomena"],"VINTAR":["Margaay Vintar","San Nicolas (Vintar)","San Pedro (Vintar)","Sta. Maria","San Ramon","Lubnac","PF Alviar","Magabobo","Salsalamagui","Alsem","Alejo Malasig","Parut","San Roque Vintar","Abkir","Columbia","Cabisocolan","Malampa","Manarang"],"PASUQUIN":["Caruan","Estancia","Sulongan","Dilavo","Tabungao","Dilanis","Pangil","Nalvo","Pragata","Nagsanga","Naglicuan","Puyupuyan","Poblacion 2","Surong","Poblacion 3","Binsang","Carusipan","Darupidip","Dadaeman","Batuli","Salpad","Sulbec","Sapat","Nangabangab","Poblacion 1 & 4","San Juan","Sta. Catalina","Carusikis","Sta. Matilde","Tadao","Susugaen"]};
+const BACARRA_TOWNS_BY_AREA = {"BACARRA":["Taguipuro","Cabaruan","San Roque 1","San Roque 2","San Simon","San Andres 1","San Andres 2","San Pedro","Sto. Cristo 1","Sto. Cristo 2","San Agustin","Pipias","Cabulalaan","Natba","Calioet Libong","Cadaratan","Pasngal","Cabusligan","Pungto","Pasiocan","Buyon","Sangil","Ganagan","Casilian","Pulangi","Libtong","Tambidao","Corocor","Tuburan","Macupit","Paninaan","Duripes","Teppang","Bani","San Gabriel 1","San Gabriel 2","Nambaran","Sta. Rita","Sta. Filomena","San Vicente"],"VINTAR":["Margaay Vintar","San Nicolas (Vintar)","San Pedro (Vintar)","Sta. Maria","San Ramon","Lubnac","PF Alviar","Magabobo","Salsalamagui","Alsem","Alejo Malasig","Parut","San Roque Vintar","Abkir","Columbia","Cabisocolan","Malampa","Manarang","Parparoroc","Visaya"],"PASUQUIN":["Caruan","Estancia","Sulongan","Dilavo","Tabungao","Dilanis","Pangil","Nalvo","Pragata","Nagsanga","Naglicuan","Puyupuyan","Poblacion 2","Surong","Poblacion 3","Binsang","Carusipan","Darupidip","Dadaeman","Batuli","Salpad","Sulbec","Sapat","Nangabangab","Poblacion 1 & 4","San Juan","Sta. Catalina","Carusikis","Sta. Matilde","Tadao","Susugaen","Davila"]};
 const BACARRA_TOWN_NAMES = [...BACARRA_TOWNS_BY_AREA.BACARRA,...BACARRA_TOWNS_BY_AREA.VINTAR,...BACARRA_TOWNS_BY_AREA.PASUQUIN];
+// Official Zone ID -> separate town names from the latest Bacarra Hub zone workbook.
+// The Zone ID suffix identifies the area; multiple town names remain separate members.
+const BACARRA_ZONE_ID_TOWNS = {"A-05-BCA":["Taguipuro"],"A-14-BCA":["Cabaruan"],"A-18-BCA":["San Roque 1","San Roque 2"],"A-01-BCA":["San Simon"],"A-04-BCA":["San Andres 1","San Andres 2"],"A-15-BCA":["San Pedro"],"A-16-BCA":["Sto. Cristo 1","Sto. Cristo 2"],"C-05-PSN":["Caruan","Estancia","Sulongan"],"C-08-PSN":["Dilavo"],"A-02-BCA":["San Agustin"],"A-21-BCA":["Pipias","Cabulalaan","Natba"],"B-04-VNR":["Margaay Vintar"],"A-08-BCA":["Calioet Libong","Cadaratan"],"A-20-BCA":["Pasngal","Cabusligan","Pungto"],"B-02-VNR":["San Nicolas (Vintar)"],"B-01-VNR":["San Pedro (Vintar)"],"B-03-VNR":["Sta. Maria","San Ramon"],"B-07-VNR":["Lubnac"],"B-06-VNR":["PF Alviar","Magabobo","Salsalamagui","Alsem"],"A-10-BCA":["Pasiocan"],"A-11-BCA":["Buyon"],"B-05-VNR":["Alejo Malasig","Parut"],"A-09-BCA":["Sangil","Ganagan","Casilian"],"A-12-BCA":["Pulangi","Libtong"],"A-06-BCA":["Tambidao"],"C-01-PSN":["Tabungao","Dilanis","Pangil"],"A-03-BCA":["Corocor"],"C-04-PSN":["Nalvo","Pragata","Nagsanga"],"C-03-PSN":["Naglicuan","Puyupuyan"],"C-06-PSN":["Poblacion 2","Surong"],"C-10-PSN":["Poblacion 3"],"A-19-BCA":["Tuburan"],"A-13-BCA":["Macupit","Paninaan"],"C-02-PSN":["Binsang","Carusipan","Darupidip","Dadaeman","Batuli"],"A-07-BCA":["Duripes","Teppang","Bani"],"C-09-PSN":["Salpad","Sulbec","Sapat"],"A-22-BCA":["San Gabriel 1","San Gabriel 2"],"A-23-BCA":["Nambaran"],"A-24-BCA":["Sta. Rita"],"A-25-BCA":["Sta. Filomena"],"B-08-VNR":["San Roque Vintar"],"B-09-VNR":["Abkir"],"B-10-VNR":["Abkir","Columbia","Cabisocolan","Malampa","Manarang"],"C-11-PSN":["Nangabangab"],"C-15-PSN":["Poblacion 1 & 4"],"C-14-PSN":["San Juan"],"C-07-PSN":["Sta. Catalina"],"C-13-PSN":["Carusikis","Sta. Matilde","Tadao"],"C-12-PSN":["Susugaen"]};
+function parcelTownZoneKey(value){
+  let s=norm(value)
+    .replace(/\([^)]*\)/g," ")
+    .replace(/\bSANTA\b/g,"STA")
+    .replace(/\bSANTO\b/g,"STO")
+    .replace(/\bII\b/g,"2")
+    .replace(/\bI\b/g,"1")
+    .replace(/[&.,-]/g," ")
+    .replace(/\s+/g," ").trim();
+  const aliases={
+    "PEDRO F ALVIAR":"PF ALVIAR",
+    "TUBBURAN":"TUBURAN",
+    "NGABANGAB":"NANGABANGAB",
+    "MARGAAY":"MARGAAY VINTAR",
+    "POBLACION 1":"POBLACION 1 4",
+    "POBLACION 4":"POBLACION 1 4"
+  };
+  return aliases[s]||s;
+}
+function parcelTownZoneKeys(value){
+  const key=parcelTownZoneKey(value);
+  const base=key.replace(/\s+[12]$/,'').trim();
+  return base&&base!==key?[key,base]:[key];
+}
+function parcelAreaFromZoneId(zoneId){
+  const match=String(zoneId||'').trim().toUpperCase().match(/-(BCA|VNR|PSN)$/);
+  return match?({BCA:'BACARRA',VNR:'VINTAR',PSN:'PASUQUIN'}[match[1]]):'';
+}
+// Zone IDs are intentionally NOT used for parcel routing while the zone feature is disabled.
+// The parcel's Town Name is matched against the official Bacarra/Vintar/Pasuquin town lists.
+function normalizeParcelTownName(value){
+  const raw=norm(value);
+  // SPX's generic "San Pedro (Pob.)" refers to Vintar's Poblacion.
+  // Bacarra's two barangays are explicitly named San Pedro I and San Pedro II.
+  if(/^SAN PEDRO\s*\(\s*POB(?:LACION)?\.?\s*\)$/.test(raw)) return "SAN PEDRO VINTAR";
+  let s=raw
+    .replace(/\bSANTA\b/g,"STA")
+    .replace(/\bSANTO\b/g,"STO")
+    .replace(/\bII\b/g,"2")
+    .replace(/\bI\b/g,"1");
+  // Normalize SPX locality suffixes and parenthetical spelling variants.
+  // Keep canonical Vintar qualifiers (e.g. "San Nicolas (Vintar)").
+  s=s.replace(/\(\s*POB(?:LACION)?\.?\s*\)/g," ");
+  s=s.replace(/\(\s*DIATON\s*\)/g," ");
+  s=s.replace(/\(\s*CABABAAN[- ]NALVO\s*\)/g," ");
+  s=s.replace(/\(\s*PRAGATA[- ]BUNGRO\s*\)/g," ");
+  s=s.replace(/\(\s*PENINAAN[- ]MALAMPA\s*\)/g," ");
+  s=s.replace(/[()]/g," ");
+  s=s.replace(/[&.,]/g," ").replace(/[–—-]/g," ").replace(/\s+/g," ").trim();
+  const aliases={
+    "SANTO CRISTO 1":"STO CRISTO 1",
+    "SANTO CRISTO 2":"STO CRISTO 2",
+    "SANTA FILOMENA 1":"STA FILOMENA",
+    "SANTA FILOMENA 2":"STA FILOMENA",
+    "STA FILOMENA 1":"STA FILOMENA",
+    "STA FILOMENA 2":"STA FILOMENA",
+    "SAN SIMON 1":"SAN SIMON",
+    "SAN SIMON 2":"SAN SIMON",
+    "SAN AGUSTIN 1":"SAN AGUSTIN",
+    "SAN AGUSTIN 2":"SAN AGUSTIN",
+    "SAN PEDRO 1":"SAN PEDRO",
+    "SAN PEDRO 2":"SAN PEDRO",
+    "SAN NICOLAS":"SAN NICOLAS VINTAR",
+    "SAN ROQUE":"SAN ROQUE VINTAR",
+    "POBLACION 1":"POBLACION 1 4",
+    "POBLACION 4":"POBLACION 1 4",
+    "POBLACION 1 4":"POBLACION 1 4",
+    "NGABANGAB":"NANGABANGAB",
+    "PEDRO F ALVIAR":"PF ALVIAR",
+    "TUBBURAN":"TUBURAN",
+    "MARGAAY":"MARGAAY VINTAR"
+  };
+  return aliases[s]||s;
+}
+function resolveParcelTownAssignment(row){
+  const rawTown=String(row?.['Town Name']??row?.['Town']??row?.['town']??'').trim();
+  if(!rawTown)return null;
+  const townKey=normalizeParcelTownName(rawTown);
+  const townAreaIndex=new Map();
+  Object.entries(BACARRA_TOWNS_BY_AREA).forEach(([area,names])=>{
+    (names||[]).forEach(name=>townAreaIndex.set(normalizeParcelTownName(name),{area,town:name}));
+  });
+  const match=townAreaIndex.get(townKey);
+  return match?{...match,zoneId:""}:null;
+}
+function normalizeParcelStation(value){
+  return norm(value).replace(/[^A-Z0-9]+/g," ").replace(/\s+/g," ").trim();
+}
+function parcelStationRouteCheck(row){
+  const currentStation=normalizeParcelStation(row?.['Current Station']??'');
+  const nextStation=normalizeParcelStation(row?.['Next Station']??'');
+  if(!currentStation){
+    return {ok:false,reason:"Missing current station"};
+  }
+  // Parcels addressed to Bacarra may still be moving through upstream MFM,
+  // SOC, DC, or fulfillment locations. Do not reject those transit legs.
+  // Only flag a parcel that is already at Bacarra Hub but is routed onward
+  // to a different station.
+  if(currentStation==="BACARRA HUB" && nextStation && nextStation!=="BACARRA HUB"){
+    return {ok:false,reason:"Parcel is already at Bacarra Hub but has a different next station"};
+  }
+  return {ok:true,reason:""};
+}
+
 function groupsOfTowns(names){
   const out=[];
   for(let i=0;i<names.length;i+=22)out.push(names.slice(i,i+22));
@@ -6183,7 +6290,7 @@ function badocRowMeta(r){
   for(const k of BADOC_STATUS_KEYS){if(Object.prototype.hasOwnProperty.call(r,k)&&String(r[k]??"").trim()){status=norm(r[k]);break;}}
   if(!status){const k=Object.keys(r).find(x=>/status/i.test(x));if(k)status=norm(r[k]);}
   const meta={
-    town:norm(r?.["Town Name"]??r?.["Town"]??r?.["town"]??""),
+    town:norm(r?._dashboardTown??r?.["Town Name"]??r?.["Town"]??r?.["town"]??""),
     station:norm(r?.["Current Station"]??""),
     destination:norm(r?.["Destination Station"]??""),
     status,
@@ -6397,13 +6504,18 @@ function mergeAllBatches(){
 }
 
 function classify(rows){
- const map=allowedMap(), valid=[],mis=[];
+ const valid=[],mis=[];
  for(const r of rows){
   const meta=badocRowMeta(r);
-  if(meta.destination!=="BACARRA HUB") continue;
-  const cs=meta.station;
-  if(!["BACARRA HUB","SOC 6","CAGAYAN DC"].includes(cs)) continue;
-  const town=meta.town; if(map[town]) valid.push({...r,_area:map[town]}); else mis.push({...r,_area:"Misrouted"});
+  // This app only counts parcels destined for Bacarra Hub.
+  if(normalizeParcelStation(meta.destination)!=="BACARRA HUB") continue;
+  // Validate the expected linehaul path independently of Zone ID.
+  const route=parcelStationRouteCheck(r);
+  if(!route.ok){mis.push({...r,_area:"Misrouted",_misrouteReason:route.reason});continue;}
+  // Town Name, not Zone ID, determines Bacarra/Vintar/Pasuquin assignment.
+  const assignment=resolveParcelTownAssignment(r);
+  if(assignment) valid.push({...r,_area:assignment.area,_dashboardTown:assignment.town,_matchedZoneId:""});
+  else mis.push({...r,_area:"Misrouted",_misrouteReason:`Town is not in the official Bacarra/Vintar/Pasuquin town list: ${String(r?.["Town Name"]??"").trim()||"blank"}`});
  }
  return {valid,mis};
 }
@@ -6646,7 +6758,7 @@ function parcelMetricSummary(rows){
 function parcelMetricTownSummary(rows){
   const out={};
   (rows||[]).forEach(row=>{
-    const town=String(row?.["Town Name"]??row?.["Town"]??row?.["town"]??"").trim().toUpperCase();
+    const town=badocRowMeta(row).town;
     if(!town)return;
     if(!out[town])out[town]={bulky:0,highValue:0};
     const f=parcelMetricFlags(row);
@@ -6865,7 +6977,7 @@ function renderTownGrid(id,list,rows,extraCounts={}){
       let groupBulkyTotal=0,groupHighValueTotal=0;
       const groupMetricSeen=new Set();
       groupMetricRows.forEach(row=>{
-        const rowTown=norm(row?.["Town Name"]??row?.["Town"]??row?.["town"]??"");
+        const rowTown=badocRowMeta(row).town;
         if(!groupTownKeys.has(rowTown))return;
         const parcelKey=normJoin(
           row?.["Order ID"]??row?.["SPX TN"]??row?.["SPX Tracking Number"]??row?.["SLS Tracking Number"]??""
@@ -7269,12 +7381,13 @@ function getParcelIncomingLinehaul(){
       :{};
 
     Object.entries(breakdown).forEach(([town,group])=>{
-      const townKey=norm(town);
-      if(!townKey||!configuredTowns.has(townKey))return;
-
       (group?.items||[]).forEach(item=>{
         const er=item?.x||{};
         const parcel=item?.r||{};
+        const assignment=resolveParcelTownAssignment(parcel);
+        if(!assignment)return;
+        const townKey=norm(assignment.town);
+        if(!townKey||!configuredTowns.has(townKey))return;
         const raw=er?.spxTN ?? er?.["SPX TN"] ?? er?.["SPX Tracking Number"] ?? "";
         const tn=normJoin(raw);
         if(!tn||seen.has(tn))return;
@@ -7285,7 +7398,7 @@ function getParcelIncomingLinehaul(){
            exceptionSet.has(typeof tnKey==="function"?tnKey(tn):tn)) return;
 
         seen.add(tn);
-        incomingRows.push(parcel);
+        incomingRows.push({...parcel,_area:assignment.area,_dashboardTown:assignment.town,_matchedZoneId:assignment.zoneId});
         total++;
         townCounts[townKey]=(townCounts[townKey]||0)+1;
       });
@@ -7315,9 +7428,9 @@ function render(){
  const badocTownSet=new Set((towns.badoc||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
  const piniliTownSet=new Set((towns.pinili||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
  const pasuquinTownSet=new Set((towns.pasuquin||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
- const incomingBadocRows=window.__badocParcelIncomingMetricRows.filter(r=>badocTownSet.has(String(r?.["Town Name"]??r?.["Town"]??"").trim().toUpperCase()));
- const incomingPiniliRows=window.__badocParcelIncomingMetricRows.filter(r=>piniliTownSet.has(String(r?.["Town Name"]??r?.["Town"]??"").trim().toUpperCase()));
- const incomingPasuquinRows=window.__badocParcelIncomingMetricRows.filter(r=>pasuquinTownSet.has(String(r?.["Town Name"]??r?.["Town"]??"").trim().toUpperCase()));
+ const incomingBadocRows=window.__badocParcelIncomingMetricRows.filter(r=>badocTownSet.has(badocRowMeta(r).town));
+ const incomingPiniliRows=window.__badocParcelIncomingMetricRows.filter(r=>piniliTownSet.has(badocRowMeta(r).town));
+ const incomingPasuquinRows=window.__badocParcelIncomingMetricRows.filter(r=>pasuquinTownSet.has(badocRowMeta(r).town));
  const badocMetric=parcelMetricSummary([...badoc,...incomingBadocRows]);
  const piniliMetric=parcelMetricSummary([...pinili,...incomingPiniliRows]);
  const pasuquinMetric=parcelMetricSummary([...pasuquin,...incomingPasuquinRows]);
@@ -7416,7 +7529,7 @@ function refreshRecordFilterCounts(){
     const selected=new Set(selectedValues(id));
     const base=recordMatches(rows,q,filters,ignore);
     const counts=new Map();
-    base.forEach(r=>{const v=id==="recordStatus"?recordStatusValue(r):String(r?.[key]??"").trim();if(v)counts.set(v,(counts.get(v)||0)+1)});
+    base.forEach(r=>{const v=id==="recordStatus"?recordStatusValue(r):(id==="recordTown"?badocRowMeta(r).town:String(r?.[key]??"").trim());if(v)counts.set(v,(counts.get(v)||0)+1)});
     el.innerHTML="";
     [...counts.keys()].sort((a,b)=>a.localeCompare(b)).forEach(v=>{
       const o=document.createElement("option");
@@ -7593,9 +7706,9 @@ function updateDashboardFromParcelFilters(){
   const filterBadocSet=new Set((towns.badoc||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
   const filterPiniliSet=new Set((towns.pinili||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
   const filterPasuquinSet=new Set((towns.pasuquin||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
-  const filterBadocMetric=parcelMetricSummary([...rows.filter(r=>norm(r?._area)==="BACARRA"),...window.__badocParcelIncomingMetricRows.filter(r=>filterBadocSet.has(String(r?.["Town Name"]??r?.["Town"]??"").trim().toUpperCase()))]);
-  const filterPiniliMetric=parcelMetricSummary([...rows.filter(r=>norm(r?._area)==="VINTAR"),...window.__badocParcelIncomingMetricRows.filter(r=>filterPiniliSet.has(String(r?.["Town Name"]??r?.["Town"]??"").trim().toUpperCase()))]);
-  const filterPasuquinMetric=parcelMetricSummary([...pasuquinRows,...window.__badocParcelIncomingMetricRows.filter(r=>filterPasuquinSet.has(String(r?.["Town Name"]??r?.["Town"]??"").trim().toUpperCase()))]);
+  const filterBadocMetric=parcelMetricSummary([...rows.filter(r=>norm(r?._area)==="BACARRA"),...window.__badocParcelIncomingMetricRows.filter(r=>filterBadocSet.has(badocRowMeta(r).town))]);
+  const filterPiniliMetric=parcelMetricSummary([...rows.filter(r=>norm(r?._area)==="VINTAR"),...window.__badocParcelIncomingMetricRows.filter(r=>filterPiniliSet.has(badocRowMeta(r).town))]);
+  const filterPasuquinMetric=parcelMetricSummary([...pasuquinRows,...window.__badocParcelIncomingMetricRows.filter(r=>filterPasuquinSet.has(badocRowMeta(r).town))]);
   if($("bulkyTotal"))$("bulkyTotal").textContent=filterMetricTotals.bulky.toLocaleString();
   if($("highValueTotal"))$("highValueTotal").textContent=filterMetricTotals.highValue.toLocaleString();
   if($("totalMetricDesc"))$("totalMetricDesc").textContent=`Bulky ${filterMetricTotals.bulky.toLocaleString()} • High Value ${filterMetricTotals.highValue.toLocaleString()}`;

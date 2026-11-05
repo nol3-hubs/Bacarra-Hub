@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bacarra-hub-pwa-round-logo-v2';
+const CACHE_NAME = 'bacarra-hub-pwa-v5-town-name-fix';
 const APP_SHELL = [
   './index.html',
   './manifest-bacarra-hub-round-v3.webmanifest',
