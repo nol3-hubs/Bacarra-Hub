@@ -1,8 +1,8 @@
 (() => {
   // One unified extension serves the host BADOC HUB app and its isolated Received Checking iframe.
   // Connect only when an explicit app marker is present; never connect from the temporary SPX tab.
-  const isReceivedChecking = !!document.querySelector('meta[name="badoc-received-checking"][content="v70"]');
-  const isMainBadocApp = !!document.querySelector('meta[name="badoc-main-app"][content="v70"]') ||
+  const isReceivedChecking = !!document.querySelector('meta[name="badoc-received-checking"]');
+  const isMainBadocApp = !!document.querySelector('meta[name="badoc-main-app"]') ||
     !!document.getElementById('badocSpxBridgeInstallModal') || !!document.getElementById('receivedCheckingFrame');
   if (!isReceivedChecking && !isMainBadocApp) return;
 
@@ -17,12 +17,12 @@
     /^(https?:)\/\/(localhost|127\.0\.0\.1)(?::\d+)?\//i.test(bridgeContextUrl) ||
     /^(https:)\/\/(?:[^./]+\.)+github\.io(?::\d+)?\//i.test(bridgeContextUrl);
   if (!isAllowedHost) return;
-  if (window.__badocSpxBridgeUnifiedV70) return;
-  window.__badocSpxBridgeUnifiedV70 = true;
+  if (window.__badocSpxBridgeUnifiedV71) return;
+  window.__badocSpxBridgeUnifiedV71 = true;
 
   const PAGE_SOURCE = "BADOC_SPX_BRIDGE";
   const BADOC_SOURCE = "BADOC_PAGE";
-  const VERSION = "70";
+  const VERSION = "71";
   let port = null;
   let reconnectTimer = null;
   let shuttingDown = false;
@@ -93,7 +93,7 @@
         data.type === "BADOC_START_LINEHAUL_SYNC" ? "linehaul" :
         data.type === "BADOC_START_RIDER_SYNC" ? "rider" : "parcel-inbound";
       emit("BADOC_SPX_ERROR", {
-        message: "SPX BRIDGE v70 is not connected. Reload the extension and refresh BACARRA HUB.",
+        message: "SPX BRIDGE v71 is not connected. Reload SPX BRIDGE v71 and refresh BACARRA HUB.",
         kind: errorKind
       });
       return;
