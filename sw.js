@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bacarra-hub-pwa-v12-mbtowns1-pasuquin-mb-town-groups-canaam';
+const CACHE_NAME = 'bacarra-hub-pwa-v12-all-towns-mb-routing';
 const APP_SHELL = [
   './index.html',
   './manifest-bacarra-hub-round-v3.webmanifest',
