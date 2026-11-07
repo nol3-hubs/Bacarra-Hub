@@ -22,7 +22,6 @@ const PARCEL_SECONDARY_RETURN_STATUS_ID = 10;
 const PARCEL_SECONDARY_TRANSPORT_STATUS_NAME = "SOC_LHTransported";
 const PARCEL_SECONDARY_RETURN_STATUS_NAME = "Return_LMHub_Received";
 const PARCEL_RETURN_EXPORT_PATH = "/api/admin/tracking/am_hub/return/export";
-const PARCEL_STATION_ID = 3061; // legacy Badoc fallback only; not used to validate hub-aware jobs
 const PARCEL_INBOUND_STATUS_IDS = [1, 882, 35, 34, 36, 15, 928, 918, 33, 9, 7, 8, 630, 49, 50];
 const PARCEL_INBOUND_STATUS_SET = new Set(PARCEL_INBOUND_STATUS_IDS.map(String));
 const PARCEL_NATIVE_WAIT_MS = 60000;
@@ -1321,9 +1320,10 @@ async function submitOneSecondaryExport(job, { statusId, statusName, endpoint, l
 async function downloadSecondaryExport(submitted, job) {
   const waitStartSec = Math.max(0, Math.floor((job.startedAt - 10 * 60 * 1000) / 1000));
   const completed = await waitForCompletion(submitted.taskId, waitStartSec, job);
-  if (Number(completed?.station_id || 0) !== PARCEL_STATION_ID) {
-    throw new Error(`The ${submitted.label} task station did not match BADOC HUB.`);
-  }
+  // Do not validate the export task's station_id here. SPX task metadata can
+  // report the account/session station (or a legacy hub ID), not the row-level
+  // destination selected by the export. The downloaded CSV is filtered in
+  // Received Checking using its Current Station and Destination Station fields.
   progress(`${submitted.label} export complete. Getting signed download URL…`, { phase: "parcel-secondary-download-url", kind: "parcel-secondary", taskId: submitted.taskId, statusName: submitted.statusName });
   const signedUrl = await getSignedDownloadUrl(submitted.taskId);
   const csv = await downloadCsv(signedUrl);
