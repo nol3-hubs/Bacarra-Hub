@@ -5598,7 +5598,7 @@ body:not(.dark-mode) #kpi #kpiCategories .v3-kpi-card.kpi-status-a .kpi-target-r
       <label class="lh-upload"><span> Upload Exported TO List
         <input id="linehaulCsvFile" type="file" accept=".csv,text/csv">
       </label>
-      <button class="btn" id="syncLinehaulFromSPX" type="button" title="Compare Linehaul SLS TN / SPX TN OIDs with Planning Board parcels; include only Transporting at Cagayan DC → Bacarra Hub">↻ Import incoming</button>
+      <button class="btn" id="syncLinehaulFromSPX" type="button" title="Compare Linehaul SLS TN / SPX TN OIDs with Planning Board parcels; include only Transporting at Cagayan DC → Bacarra Hub / MB Pasuquin Hub / MB Tamdagan Hub / MB Ester Hub">↻ Import incoming</button>
       <button class="btn" id="clearLinehaul">Clear</button>
       <span id="linehaulSpxSyncStatus" class="hint" aria-live="polite"></span>
     </div>
@@ -8976,7 +8976,7 @@ function parseLinehaulCSV(text){
     if(exact>=0)return exact;
     return headers.findIndex(x=>wanted.some(y=>y&&x.includes(y)));
   };
-  const ti=idx(["Line Haul Task ID","Linehaul Task ID","Line Haul Task"]);
+  const ti=idx(["Line Haul Task ID","Linehaul Task ID","Line Haul Task","LH Trip Number","LH Trip No","Linehaul Trip Number","Line Haul Trip Number","Trip Number"]);
   const spxi=idx(["SPX TN","SPX Tracking Number"]);
   const slsi=idx(["SLS TN","SLS Tracking Number"]);
   const oidi=idx(["OID","Order ID","OrderID"]);
@@ -9068,8 +9068,25 @@ function getLinehaulPlanningBoardRows(){
 // requested operational status and route. `TO Status` belongs to the transfer
 // order and must never override the parcel's actual `Status` field.
 const LINEHAUL_REQUIRED_CURRENT_STATION = "CAGAYAN DC";
-const LINEHAUL_REQUIRED_DESTINATION_STATION = "BACARRA HUB";
+const LINEHAUL_REQUIRED_DESTINATION_STATIONS = new Set([
+  "BACARRA HUB",
+  "MB PASUQUIN HUB",
+  "MB TAMDAGAN HUB",
+  "MB ESTER HUB"
+].map(normJoin));
+const LINEHAUL_REQUIRED_DESTINATION_LABELS = [
+  "Bacarra Hub",
+  "MB Pasuquin Hub",
+  "MB Tamdagan Hub",
+  "MB Ester Hub"
+];
 const LINEHAUL_REQUIRED_STATUS_KEYS = new Set(["TRANSPORTING","SOCLHTRANSPORTING"]);
+function linehaulDestinationStationAllowed(value){
+  return LINEHAUL_REQUIRED_DESTINATION_STATIONS.has(normJoin(value));
+}
+function linehaulDestinationStationText(){
+  return LINEHAUL_REQUIRED_DESTINATION_LABELS.join(" / ");
+}
 function linehaulFieldValue(row,names){
   if(!row||typeof row!=="object")return "";
   for(const name of names){
@@ -9115,7 +9132,7 @@ function linehaulPlanningRowMatchesRequiredRoute(row){
   const status=linehaulPlanningStatus(row);
   return LINEHAUL_REQUIRED_STATUS_KEYS.has(status) &&
     normJoin(currentStation)===normJoin(LINEHAUL_REQUIRED_CURRENT_STATION) &&
-    normJoin(destinationStation)===normJoin(LINEHAUL_REQUIRED_DESTINATION_STATION);
+    linehaulDestinationStationAllowed(destinationStation);
 }
 function buildLinehaulParcelStationIndex(parcelRows){
   const index=new Map();
@@ -9143,7 +9160,7 @@ function linehaulRowMatchReason(exportRow,parcelIndex){
   if(!statusRows.length)return "STATUS_MISMATCH";
   const currentRows=statusRows.filter(row=>normJoin(linehaulFieldValue(row,["Current Station","Current Station Name","CurrentStation","currentStation","current_station"]))===normJoin(LINEHAUL_REQUIRED_CURRENT_STATION));
   if(!currentRows.length)return "CURRENT_STATION_MISMATCH";
-  const destinationRows=currentRows.filter(row=>normJoin(linehaulFieldValue(row,["Destination Station","Destination Station Name","DestinationStation","destinationStation","destination_station"]))===normJoin(LINEHAUL_REQUIRED_DESTINATION_STATION));
+  const destinationRows=currentRows.filter(row=>linehaulDestinationStationAllowed(linehaulFieldValue(row,["Destination Station","Destination Station Name","DestinationStation","destinationStation","destination_station"])));
   if(!destinationRows.length)return "DESTINATION_STATION_MISMATCH";
   return "MATCH";
 }
@@ -9231,7 +9248,7 @@ function filterLinehaulCsvTextByRequiredStations(text,parcelRows){
     record.oid=oidIndex>=0?row[oidIndex]:"";
     if(linehaulRowMatchesRequiredStations(record,parcelIndex))kept.push(row);
   }
-  if(kept.length===1)throw Error("No Linehaul OIDs matched Planning Board records with Status = Transporting, Current Station = Cagayan DC, and Destination Station = Bacarra Hub. Make sure the Planning Board parcel data is loaded and contains matching Order ID / OID values.");
+  if(kept.length===1)throw Error("No Linehaul OIDs matched Planning Board records with Status = Transporting, Current Station = Cagayan DC, and Destination Station = one of: Bacarra Hub, MB Pasuquin Hub, MB Tamdagan Hub, MB Ester Hub. Make sure the Planning Board parcel data is loaded and contains matching Order ID / OID values.");
   return kept.map(row=>row.map(escapeLinehaulCsvCell).join(",")).join("\r\n")+"\r\n";
 }
 
@@ -9781,17 +9798,21 @@ async function importLinehaulCsvText(text,fileName="Uploaded TO List.csv",source
   const parsedTasks=parseLinehaulCSV(text);
   if(!parsedTasks.length)throw Error("No Line Haul Task ID / SPX TN values were found.");
   const planningRows=getLinehaulPlanningBoardRows();
-  const existingRouteFilter=filterLinehaulTasksByRequiredStations(linehaulTasks,planningRows);
+  // The latest successfully filtered SPX import is the authoritative task snapshot.
+  // Keep prior arrival-checkbox choices only for task IDs still present in this import;
+  // do not union old task IDs into the latest snapshot (that caused stale extra cards).
+  const previousTasksById=new Map((Array.isArray(linehaulTasks)?linehaulTasks:[])
+    .filter(t=>t&&!t.blank&&String(t.id||"").trim())
+    .map(t=>[String(t.id).trim(),t]));
   const routeFilter=filterLinehaulTasksByRequiredStations(parsedTasks,planningRows);
   const imported=routeFilter.tasks;
   if(!imported.length){
     // Do not replace the last successful task snapshot when Planning Board
     // records have not arrived yet or none currently meet the requested route.
     renderLinehaul();
-    throw Error(`No Linehaul OIDs qualified. Required: Planning Board Status = SOC_LHTransporting / Transporting, Current Station = Cagayan DC, Destination Station = Bacarra Hub. ${routeFilter.readRows.toLocaleString()} Linehaul rows were read; ${routeFilter.rejectedRows.toLocaleString()} were excluded. ${linehaulFilterDiagnosticText(routeFilter)}`);
+    throw Error(`No Linehaul OIDs qualified. Required: Planning Board Status = SOC_LHTransporting / Transporting, Current Station = Cagayan DC, Destination Station = one of: Bacarra Hub, MB Pasuquin Hub, MB Tamdagan Hub, MB Ester Hub. ${routeFilter.readRows.toLocaleString()} Linehaul rows were read; ${routeFilter.rejectedRows.toLocaleString()} were excluded. ${linehaulFilterDiagnosticText(routeFilter)}`);
   }
   // Only replace old task groups after this import has at least one valid OID.
-  linehaulTasks=existingRouteFilter.tasks;
   const exportedRows=imported.flatMap(t=>t.exportRows||[]);
   const exportedRowCount=exportedRows.length;
   const exportedUniqueSPX=new Set(exportedRows.map(r=>normJoin(r?.slsTN||r?.oid||r?.spxTN)).filter(Boolean)).size;
@@ -9810,17 +9831,16 @@ async function importLinehaulCsvText(text,fileName="Uploaded TO List.csv",source
     Object.entries(towns).forEach(([town,group])=>(group.items||[]).forEach(item=>{item.x.town=town;item.x.status=item.x.status||task.status;}));
   });
 
-  const map=new Map(linehaulTasks.map(x=>[x.blank?"__BLANK_LINEHAUL__":x.id,x]));
   imported.forEach(x=>{
-    const key=x.blank?"__BLANK_LINEHAUL__":x.id;
-    const previous=map.get(key);
+    const key=String(x?.id||"").trim();
+    const previous=previousTasksById.get(key);
     if(typeof x.arrivingInTime!=="boolean"){
       x.arrivingInTime=previous&&typeof previous.arrivingInTime==="boolean"
         ?previous.arrivingInTime:false;
     }
-    map.set(key,x);
   });
-  linehaulTasks=[...map.values()];
+  // Replace, never append to, the task cards from a previous successful import.
+  linehaulTasks=imported;
   // Persist locally in IndexedDB before returning to the SPX bridge handler.
   // The bridge handler then uploads the original CSV to Supabase as before.
   await writeLinehaulRecords([
@@ -9848,7 +9868,7 @@ $("linehaulCsvFile")?.addEventListener("change",async e=>{
   const f=e.target.files?.[0];if(!f)return;
   try{
     const result=await importLinehaulCsvText(await f.text(),f.name,"file");
-    alert(`${result.label} ${result.importedCount} linehaul task${result.importedCount===1?"":"s"}. Accepted ${result.total.toLocaleString()} row(s) matching Planning Board OIDs with Status = Transporting, Current Station = Cagayan DC, and Destination Station = Bacarra Hub. Excluded ${Number(result.excludedRows||0).toLocaleString()} row(s). Matched ${result.matched.toLocaleString()} Linehaul OID(s) to qualifying Planning Board records.`);
+    alert(`${result.label} ${result.importedCount} linehaul task${result.importedCount===1?"":"s"}. Accepted ${result.total.toLocaleString()} row(s) matching Planning Board OIDs with Status = Transporting, Current Station = Cagayan DC, and Destination Station = one of: Bacarra Hub, MB Pasuquin Hub, MB Tamdagan Hub, MB Ester Hub. Excluded ${Number(result.excludedRows||0).toLocaleString()} row(s). Matched ${result.matched.toLocaleString()} Linehaul OID(s) to qualifying Planning Board records.`);
   }catch(err){
     alert("Could not read this exported file: "+err.message);
     console.error(err);
@@ -10154,7 +10174,7 @@ async function beginLinehaulSpxBridgeSync(){
   if(btn?.dataset.busy==="1")return;
   if(btn)btn.dataset.busy="1";
   if(btn)btn.disabled=true;
-  window.__badocOperationModalStart?.("Sync Cagayan DC → Bacarra Hub Linehaul from SPX","Connecting to SPX and requesting linehaul tasks…");
+  window.__badocOperationModalStart?.("Sync Cagayan DC → Bacarra Hub / MB Pasuquin Hub / MB Tamdagan Hub / MB Ester Hub Linehaul from SPX","Connecting to SPX and requesting linehaul tasks…");
   setLinehaulSpxSyncStatus("Connecting to SPX…","working");
   postBadocSpxMessage("BADOC_START_LINEHAUL_SYNC");
 }
@@ -10285,8 +10305,8 @@ window.addEventListener("message",async event=>{
       try{
         const result=await importLinehaulCsvText(data.csvText,data.fileName||"inbound_to_from_spx.csv","spx");
         setLinehaulSpxSyncStatus(`Synced ${result.total.toLocaleString()} rows · ${result.importedCount} task${result.importedCount===1?"":"s"}`,"success");
-        window.__badocOperationModalFinish?.("Linehaul Sync Complete","Only Planning Board OIDs with Status = SOC_LHTransporting / Transporting, Current Station = Cagayan DC, and Destination Station = Bacarra Hub were loaded.",[
-          ["Tasks",result.importedCount.toLocaleString()],["Accepted rows",result.total.toLocaleString()],["Excluded rows",Number(result.excludedRows||0).toLocaleString()],["Matched Planning Board OIDs",result.matched.toLocaleString()],["Route filter","Cagayan DC → Bacarra Hub"]
+        window.__badocOperationModalFinish?.("Linehaul Sync Complete","Only Planning Board OIDs with Status = SOC_LHTransporting / Transporting, Current Station = Cagayan DC, and Destination Station = one of: Bacarra Hub, MB Pasuquin Hub, MB Tamdagan Hub, MB Ester Hub were loaded.",[
+          ["Tasks",result.importedCount.toLocaleString()],["Accepted rows",result.total.toLocaleString()],["Excluded rows",Number(result.excludedRows||0).toLocaleString()],["Matched Planning Board OIDs",result.matched.toLocaleString()],["Route filter","Cagayan DC → Bacarra Hub / MB Pasuquin Hub / MB Tamdagan Hub / MB Ester Hub"]
         ],"success");
       }catch(importError){
         const message=String(importError?.message||importError);
@@ -10295,7 +10315,7 @@ window.addEventListener("message",async event=>{
           // mode; the next Parcel Count upload will re-run this exact filter.
           await window.__badocCloudReapplyLinehaul?.();
           setLinehaulSpxSyncStatus("Source saved — waiting for matching Planning Board OIDs","working");
-          window.__badocOperationModalFinish?.("Linehaul Source Saved","The SPX Linehaul file was saved to Bacarra cloud, but no Planning Board OIDs currently meet the required status and station route. Existing Linehaul data was kept. Upload/sync the current Parcel Count data and the app will retry automatically.",[["Details",message],["Required route","SOC_LHTransporting · Cagayan DC → Bacarra Hub"]],"warning");
+          window.__badocOperationModalFinish?.("Linehaul Source Saved","The SPX Linehaul file was saved to Bacarra cloud, but no Planning Board OIDs currently meet the required status and station route. Existing Linehaul data was kept. Upload/sync the current Parcel Count data and the app will retry automatically.",[["Details",message],["Required route","SOC_LHTransporting · Cagayan DC → Bacarra Hub / MB Pasuquin Hub / MB Tamdagan Hub / MB Ester Hub"]],"warning");
         }else throw importError;
       }
     }catch(err){
@@ -10827,8 +10847,9 @@ window.DASHBOARD_V2_READY = true;
       console.info("Linehaul cloud file retained; waiting for Planning Board OID records.");
       return;
     }
-    const existingRouteFilter=filterLinehaulTasksByRequiredStations(linehaulTasks,planningRows);
-    const previousTasks=new Map(existingRouteFilter.tasks.map(x=>[x.blank?"__BLANK_LINEHAUL__":String(x.id||"").trim(),x]));
+    const previousTasks=new Map((Array.isArray(linehaulTasks)?linehaulTasks:[])
+      .filter(t=>t&&!t.blank&&String(t.id||"").trim())
+      .map(t=>[String(t.id).trim(),t]));
     const routeFilter=filterLinehaulTasksByRequiredStations(parsedTasks,planningRows);
     const imported=routeFilter.tasks;
     if(!imported.length){
@@ -10853,9 +10874,9 @@ window.DASHBOARD_V2_READY = true;
         item.x.town=town;item.x.status=item.x.status||task.status;
       }));
     });
-    const existing=new Map(existingRouteFilter.tasks.map(x=>[x.blank?"__BLANK_LINEHAUL__":x.id,x]));
-    imported.forEach(x=>existing.set(x.blank?"__BLANK_LINEHAUL__":x.id,x));
-    linehaulTasks=[...existing.values()];
+    // Cloud source is the latest authoritative import; remove task IDs that are
+    // absent from it instead of accumulating stale cards from previous syncs.
+    linehaulTasks=imported;
     if(typeof saveLinehaul==="function")await saveLinehaul();
     if(typeof renderLinehaul==="function")renderLinehaul();
     if(typeof renderLinehaulKpis==="function")renderLinehaulKpis();
