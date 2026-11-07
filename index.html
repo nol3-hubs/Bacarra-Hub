@@ -1307,7 +1307,7 @@ window.BADOC_SHARED_CONFIG = {
 };
 /* Daily History Google Sheets Web App URL. This stays blank until its Apps Script is deployed. */
 /* Bacarra Hub town/zone reference imported from the supplied workbook. */
-window.BACARRA_TOWN_LIST = ["Taguipuro","Cabaruan","San Roque 1","San Roque 2","San Simon","San Andres 1","San Andres 2","San Pedro","Sto. Cristo 1","Sto. Cristo 2","Caruan","Estancia","Sulongan","Dilavo","San Agustin","Pipias","Cabulalaan","Natba","Margaay Vintar","Calioet Libong","Cadaratan","Pasngal","Cabusligan","Pungto","San Nicolas (Vintar)","San Pedro (Vintar)","Sta. Maria","San Ramon","Lubnac","PF Alviar","Magabobo","Salsalamagui","Alsem","Pasiocan","Buyon","Alejo Malasig","Parut","Sangil","Ganagan","Casilian","Pulangi","Libtong","Tambidao","Tabungao","Dilanis","Pangil","Corocor","Nalvo","Pragata","Nagsanga","Naglicuan","Puyupuyan","Poblacion 2","Surong","Poblacion 3","Tuburan","Macupit","Paninaan","Binsang","Carusipan","Darupidip","Dadaeman","Batuli","Duripes","Teppang","Bani","Salpad","Sulbec","Sapat","San Gabriel 1","San Gabriel 2","Nambaran","Sta. Rita","Sta. Filomena","San Roque Vintar","Abkir","Columbia","Cabisocolan","Malampa","Manarang","Nangabangab","Poblacion 1 & 4","San Juan","Sta. Catalina","Carusikis","Sta. Matilde","Tadao","Susugaen"];
+window.BACARRA_TOWN_LIST = ["Taguipuro","Cabaruan","San Roque 1","San Roque 2","San Simon","San Andres 1","San Andres 2","San Pedro","Sto. Cristo 1","Sto. Cristo 2","San Agustin","Pipias","Cabulalaan","Natba","Calioet Libong","Cadaratan","Pasngal","Cabusligan","Pungto","Pasiocan","Buyon","Sangil","Ganagan","Casilian","Pulangi","Libtong","Tambidao","Corocor","Tuburan","Macupit","Paninaan","Duripes","Teppang","Bani","San Gabriel 1","San Gabriel 2","Nambaran","Sta. Rita","Sta. Filomena","San Vicente","Margaay Vintar","San Nicolas (Vintar)","San Pedro (Vintar)","Sta. Maria","San Ramon","Lubnac","PF Alviar","Magabobo","Salsalamagui","Alsem","Alejo Malasig","Parut","San Roque Vintar","Abkir","Columbia","Cabisocolan","Malampa","Manarang","Parparoroc","Caruan","Estancia","Sulongan","Dilavo","Tabungao","Dilanis","Pangil","Nalvo","Pragata","Nagsanga","Naglicuan","Puyupuyan","Poblacion 2","Surong","Poblacion 3","Binsang","Carusipan","Darupidip","Dadaeman","Batuli","Salpad","Sulbec","Sapat","Nangabangab","Poblacion 1 & 4","San Juan","Sta. Catalina","Carusikis","Sta. Matilde","Tadao","Susugaen","Bayog","Bobon","Davila","Paayas","Bago","Cabangaran","Cabayo","Canaam","Dagupan","Dipilat","Esperanza","Isic Isic","San Jose (Lipay)","Tamdagan","Bulbulala","Ester","Mabanbanag","Namoroc","Visaya"];
 window.BACARRA_KPI_SCORECARD_URL = 'https://docs.google.com/spreadsheets/d/1FYolT8KgUx3Xi2nOaJAwAnpuL-_LG0732uZH0xNv-eA/edit?gid=288141485#gid=288141485';
 window.BACARRA_DAILY_HISTORY_GSHEET_URL = "";
 </script>
@@ -5322,6 +5322,11 @@ body:not(.dark-mode) #kpi #kpiCategories .v3-kpi-card.kpi-status-a .kpi-target-r
 #dailyDataNav, #mobileDailyDataMenu { display:none !important; }
 </style>
 
+<style id="pasuquin-mb-group-labels-v1">
+#pasuquinGrid .town-card-title{display:block!important;flex:1 1 100%!important;width:100%;color:var(--c-8fd8ff-text);font-size:11px;font-weight:900;letter-spacing:.08em;margin:0 0 2px}
+#pasuquinGrid .town-card-header{align-items:center}
+#pasuquinGrid .town-rider-picker{order:0!important}
+</style>
 <style id="bacarra-pasuquin-layout-v1">
 #pasuquinGrid{display:grid!important;width:100%!important;max-width:100%!important;min-width:0!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;align-items:start!important;overflow:visible!important}
 #pasuquinGrid .town-column{display:flex!important;flex-direction:column!important;gap:14px!important;min-width:0!important;width:100%!important}
@@ -5523,14 +5528,14 @@ body:not(.dark-mode) #kpi #kpiCategories .v3-kpi-card.kpi-status-a .kpi-target-r
     </div>
     <div class="section bacarra-town-section" data-town-area="bacarra">
   <div class="area-head">
-    <h2>BACARRA TOWNS <span class="hint">39 TOWNS</span></h2>
+    <h2>BACARRA TOWNS <span class="hint">40 TOWNS</span></h2>
     <div class="town-layout-toolbar"><button class="btn" type="button" id="resetTownLayout">Reset Town Layouts</button><button class="btn" type="button" id="printTownLayout">Print Towns</button></div>
   </div>
   <div id="badocMoveStatus" class="town-move-status" aria-live="polite"></div>
   <div id="badocGrid" class="town-grid"></div>
 </div>
 <div class="section bacarra-town-section vintar-town-section" data-town-area="vintar">
-  <div class="area-head"><h2>VINTAR TOWNS <span class="hint">18 TOWNS</span></h2></div>
+  <div class="area-head"><h2>VINTAR TOWNS <span class="hint">19 TOWNS</span></h2></div>
   <div id="piniliMoveStatus" class="town-move-status" aria-live="polite"></div>
   <div id="piniliGrid" class="town-grid"></div>
 </div>
@@ -5538,6 +5543,11 @@ body:not(.dark-mode) #kpi #kpiCategories .v3-kpi-card.kpi-status-a .kpi-target-r
   <div class="area-head"><h2>PASUQUIN TOWNS <span class="hint">31 TOWNS</span></h2></div>
   <div id="pasuquinMoveStatus" class="town-move-status" aria-live="polite"></div>
   <div id="pasuquinGrid" class="town-grid"></div>
+</div>
+<div class="section bacarra-town-section mb-town-section" data-town-area="mbtowns">
+  <div class="area-head"><h2>MB TOWNS <span class="hint">19 TOWNS</span></h2></div>
+  <div id="mbtownsMoveStatus" class="town-move-status" aria-live="polite"></div>
+  <div id="mbtownGrid" class="town-grid"></div>
 </div>
 <div id="parcelRecordsIntegrated"><div class="section">
     <h2>Parcel Records <span id="recordMeta"></span></h2>
@@ -5631,6 +5641,7 @@ body:not(.dark-mode) #kpi #kpiCategories .v3-kpi-card.kpi-status-a .kpi-target-r
       <div class="section"><h2>BACARRA TOWNS</h2><div id="badocEdit" class="listbox"></div><button class="btn primary" id="addBadoc">Add Bacarra town</button></div>
       <div class="section"><h2>VINTAR TOWNS</h2><div id="piniliEdit" class="listbox"></div><button class="btn primary" id="addPinili">Add Vintar town</button></div>
       <div class="section"><h2>PASUQUIN TOWNS</h2><div id="pasuquinEdit" class="listbox"></div><button class="btn primary" id="addPasuquin">Add Pasuquin town</button></div>
+      <div class="section"><h2>MB TOWNS</h2><div id="mbtownsEdit" class="listbox"></div><button class="btn primary" id="addMBTowns">Add MB town</button></div>
     </div>
   </div></section>
 
@@ -6054,13 +6065,34 @@ UPLOAD TO PARCEL COUNT</div>
 </main>
 </div>
 
+<style id="bacarra-mb-towns-layout-v1">
+#mbtownGrid{display:grid!important;width:100%!important;max-width:100%!important;min-width:0!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;align-items:start!important;overflow:visible!important}
+#mbtownGrid .town-column{display:flex!important;flex-direction:column!important;gap:14px!important;min-width:0!important;width:100%!important}
+#mbtownGrid .town-card,#mbtownGrid .town-row{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+#mbtownGrid .town-row .town{white-space:normal!important;overflow-wrap:anywhere!important}
+@media(max-width:900px){#mbtownGrid{grid-template-columns:minmax(0,1fr)!important;gap:9px!important}#mbtownGrid .town-column{gap:9px!important}}
+@media(max-width:700px){#mbtownGrid{grid-template-columns:1fr!important}#mbtownGrid .town-column{width:100%!important}#mbtownGrid .town-statuses{max-width:55%!important}}
+</style>
 
 <script>
 // Local downloaded HTML files (content:// / file://) may block IndexedDB in mobile browsers.
 // This build automatically falls back to session-memory storage so CSV upload and multi-upload still work.
 // Official town assignments from the latest Bacarra Hub workbook.
 // Zone IDs are intentionally excluded from the dashboard until requested.
-const BACARRA_TOWNS_BY_AREA = {"BACARRA":["Taguipuro","Cabaruan","San Roque 1","San Roque 2","San Simon","San Andres 1","San Andres 2","San Pedro","Sto. Cristo 1","Sto. Cristo 2","San Agustin","Pipias","Cabulalaan","Natba","Calioet Libong","Cadaratan","Pasngal","Cabusligan","Pungto","Pasiocan","Buyon","Sangil","Ganagan","Casilian","Pulangi","Libtong","Tambidao","Corocor","Tuburan","Macupit","Paninaan","Duripes","Teppang","Bani","San Gabriel 1","San Gabriel 2","Nambaran","Sta. Rita","Sta. Filomena","San Vicente"],"VINTAR":["Margaay Vintar","San Nicolas (Vintar)","San Pedro (Vintar)","Sta. Maria","San Ramon","Lubnac","PF Alviar","Magabobo","Salsalamagui","Alsem","Alejo Malasig","Parut","San Roque Vintar","Abkir","Columbia","Cabisocolan","Malampa","Manarang","Parparoroc","Visaya"],"PASUQUIN":["Caruan","Estancia","Sulongan","Dilavo","Tabungao","Dilanis","Pangil","Nalvo","Pragata","Nagsanga","Naglicuan","Puyupuyan","Poblacion 2","Surong","Poblacion 3","Binsang","Carusipan","Darupidip","Dadaeman","Batuli","Salpad","Sulbec","Sapat","Nangabangab","Poblacion 1 & 4","San Juan","Sta. Catalina","Carusikis","Sta. Matilde","Tadao","Susugaen","Davila"]};
+const BACARRA_PASUQUIN_MB_GROUPS = {
+  "MB PASUQUIN": ["Bayog", "Bobon", "Davila", "Paayas"],
+  "MB TAMDAGAN": ["Bago", "Cabangaran", "Cabayo", "Canaam", "Dagupan", "Dipilat", "Esperanza", "Isic Isic", "San Jose (Lipay)", "Tamdagan"],
+  "MB ESTER": ["Bulbulala", "Ester", "Mabanbanag", "Namoroc", "Visaya"]
+};
+const BACARRA_TOWNS_BY_AREA = {"BACARRA":["Taguipuro","Cabaruan","San Roque 1","San Roque 2","San Simon","San Andres 1","San Andres 2","San Pedro","Sto. Cristo 1","Sto. Cristo 2","San Agustin","Pipias","Cabulalaan","Natba","Calioet Libong","Cadaratan","Pasngal","Cabusligan","Pungto","Pasiocan","Buyon","Sangil","Ganagan","Casilian","Pulangi","Libtong","Tambidao","Corocor","Tuburan","Macupit","Paninaan","Duripes","Teppang","Bani","San Gabriel 1","San Gabriel 2","Nambaran","Sta. Rita","Sta. Filomena","San Vicente"],"VINTAR":["Margaay Vintar","San Nicolas (Vintar)","San Pedro (Vintar)","Sta. Maria","San Ramon","Lubnac","PF Alviar","Magabobo","Salsalamagui","Alsem","Alejo Malasig","Parut","San Roque Vintar","Abkir","Columbia","Cabisocolan","Malampa","Manarang","Parparoroc"],"PASUQUIN":["Caruan","Estancia","Sulongan","Dilavo","Tabungao","Dilanis","Pangil","Nalvo","Pragata","Nagsanga","Naglicuan","Puyupuyan","Poblacion 2","Surong","Poblacion 3","Binsang","Carusipan","Darupidip","Dadaeman","Batuli","Salpad","Sulbec","Sapat","Nangabangab","Poblacion 1 & 4","San Juan","Sta. Catalina","Carusikis","Sta. Matilde","Tadao","Susugaen"]};
+// Keep the original PASUQUIN section unchanged. The additional names belong in
+// their own MB TOWNS section directly below it. Poblacion 3 remains in the
+// original Pasuquin list and is deliberately excluded from MB TOWNS.
+const BACARRA_PASUQUIN_CORE_TOWNS = BACARRA_TOWNS_BY_AREA.PASUQUIN.slice();
+const BACARRA_MB_TOWNS = [...new Set(Object.values(BACARRA_PASUQUIN_MB_GROUPS).flat()
+  .filter(name => norm(name) !== "POBLACION 3"))];
+// Both lists still belong to PASUQUIN for parcel-area classification.
+BACARRA_TOWNS_BY_AREA.PASUQUIN = [...BACARRA_PASUQUIN_CORE_TOWNS, ...BACARRA_MB_TOWNS];
 const BACARRA_TOWN_NAMES = [...BACARRA_TOWNS_BY_AREA.BACARRA,...BACARRA_TOWNS_BY_AREA.VINTAR,...BACARRA_TOWNS_BY_AREA.PASUQUIN];
 // Official Zone ID -> separate town names from the latest Bacarra Hub zone workbook.
 // The Zone ID suffix identifies the area; multiple town names remain separate members.
@@ -6174,6 +6206,13 @@ function groupsOfTowns(names){
   for(let i=0;i<names.length;i+=22)out.push(names.slice(i,i+22));
   return out;
 }
+function pasuquinTownGroups(orderedNames){
+  const officialKeys=new Set((orderedNames||[]).map(name=>norm(name)));
+  const mbNames=new Set(Object.values(BACARRA_PASUQUIN_MB_GROUPS).flat().map(name=>norm(name)));
+  const core=(orderedNames||[]).filter(name=>!mbNames.has(norm(name)));
+  const mbGroups=Object.values(BACARRA_PASUQUIN_MB_GROUPS).map(group=>group.filter(name=>officialKeys.has(norm(name)))).filter(group=>group.length);
+  return [...groupsOfTowns(core),...mbGroups];
+}
 function townRowsFromGroups(groups){
   const rows=[];
   (groups||[]).forEach((group,index)=>{
@@ -6184,18 +6223,22 @@ function townRowsFromGroups(groups){
 }
 const BACARRA_DEFAULT_TOWN_GROUPS=groupsOfTowns(BACARRA_TOWNS_BY_AREA.BACARRA);
 const VINTAR_DEFAULT_TOWN_GROUPS=groupsOfTowns(BACARRA_TOWNS_BY_AREA.VINTAR);
-const PASUQUIN_DEFAULT_TOWN_GROUPS=groupsOfTowns(BACARRA_TOWNS_BY_AREA.PASUQUIN);
-const DEFAULTS={badoc:BACARRA_DEFAULT_TOWN_GROUPS,pinili:VINTAR_DEFAULT_TOWN_GROUPS,pasuquin:PASUQUIN_DEFAULT_TOWN_GROUPS};
+const PASUQUIN_DEFAULT_TOWN_GROUPS=groupsOfTowns(BACARRA_PASUQUIN_CORE_TOWNS);
+const MB_TOWNS_DEFAULT_GROUPS=groupsOfTowns(BACARRA_MB_TOWNS);
+const DEFAULTS={badoc:BACARRA_DEFAULT_TOWN_GROUPS,pinili:VINTAR_DEFAULT_TOWN_GROUPS,pasuquin:PASUQUIN_DEFAULT_TOWN_GROUPS,mbtowns:MB_TOWNS_DEFAULT_GROUPS};
 function copyDefaultBacarraTownSettings(){
   return {
     badoc:townRowsFromGroups(DEFAULTS.badoc),
     pinili:townRowsFromGroups(DEFAULTS.pinili),
-    pasuquin:townRowsFromGroups(DEFAULTS.pasuquin)
+    pasuquin:townRowsFromGroups(DEFAULTS.pasuquin),
+    mbtowns:townRowsFromGroups(DEFAULTS.mbtowns)
   };
 }
 function normalizeBacarraTownSettings(candidate){
   const src=Array.isArray(candidate)?{badoc:candidate}:((candidate&&typeof candidate==='object')?candidate:{});
-  const savedGroups=[...(Array.isArray(src.badoc)?src.badoc:[]),...(Array.isArray(src.pinili)?src.pinili:[]),...(Array.isArray(src.pasuquin)?src.pasuquin:[])];
+  // Include old PASUQUIN layouts and new MB TOWNS layouts. This migrates the
+  // earlier build, where MB locations were incorrectly appended to PASUQUIN.
+  const savedGroups=[...(Array.isArray(src.badoc)?src.badoc:[]),...(Array.isArray(src.pinili)?src.pinili:[]),...(Array.isArray(src.pasuquin)?src.pasuquin:[]),...(Array.isArray(src.mbtowns)?src.mbtowns:[])];
   const build=(official)=>{
     const officialByKey=new Map(official.map(name=>[norm(name),name]));
     const ordered=[],seen=new Set();
@@ -6209,11 +6252,11 @@ function normalizeBacarraTownSettings(candidate){
     official.forEach(name=>{const key=norm(name);if(!seen.has(key)){ordered.push(name);seen.add(key);}});
     return townRowsFromGroups(groupsOfTowns(ordered));
   };
-  // Import older two-area settings by town name, then separate all three official areas.
   return {
     badoc:build(BACARRA_TOWNS_BY_AREA.BACARRA),
     pinili:build(BACARRA_TOWNS_BY_AREA.VINTAR),
-    pasuquin:build(BACARRA_TOWNS_BY_AREA.PASUQUIN)
+    pasuquin:build(BACARRA_PASUQUIN_CORE_TOWNS),
+    mbtowns:build(BACARRA_MB_TOWNS)
   };
 }
 let towns=copyDefaultBacarraTownSettings();
@@ -6340,6 +6383,7 @@ function allowedMap(){
   flat(towns.badoc).forEach(x=>m[norm(x)]="BACARRA");
   flat(towns.pinili).forEach(x=>m[norm(x)]="VINTAR");
   flat(towns.pasuquin).forEach(x=>m[norm(x)]="PASUQUIN");
+  flat(towns.mbtowns).forEach(x=>m[norm(x)]="PASUQUIN");
   return m;
 }
 function parseCSV(text){
@@ -6627,9 +6671,41 @@ function setTownNote(key,index,value){
   notes[key][index]=String(value??"");
   saveTownNotes(notes);
 }
+function migrateLegacyMbTownLayout(){
+  if(window.__bacarraMbTownLayoutMigrated)return;
+  window.__bacarraMbTownLayoutMigrated=true;
+  const layouts=loadTownLayouts();
+  const notes=loadTownNotes();
+  const mbKeys=new Set(BACARRA_MB_TOWNS.map(norm));
+  const oldPasuquin=Array.isArray(layouts.pasuquin)?layouts.pasuquin:[];
+  const oldPasuquinNotes=Array.isArray(notes.pasuquin)?notes.pasuquin:[];
+  const coreGroups=[],coreNotes=[];
+  let movedAny=false;
+  oldPasuquin.forEach((group,index)=>{
+    const retained=[],moved=[];
+    (Array.isArray(group)?group:[]).forEach(name=>{
+      if(mbKeys.has(norm(name))){moved.push(name);movedAny=true;}
+      else retained.push(name);
+    });
+    if(retained.length){coreGroups.push(retained);coreNotes.push(oldPasuquinNotes[index]||"");}
+  });
+  if(movedAny){
+    layouts.pasuquin=coreGroups;
+    const priorMb=(Array.isArray(layouts.mbtowns)?layouts.mbtowns:[]).flat().filter(name=>mbKeys.has(norm(name)));
+    const ordered=[],seen=new Set();
+    [...priorMb,...BACARRA_MB_TOWNS].forEach(name=>{const key=norm(name);if(!seen.has(key)){ordered.push(BACARRA_MB_TOWNS.find(x=>norm(x)===key)||name);seen.add(key);}});
+    layouts.mbtowns=[ordered];
+    notes.pasuquin=coreNotes;
+    notes.mbtowns=[(Array.isArray(notes.mbtowns)?notes.mbtowns:[]).find(Boolean)||""];
+    saveTownLayouts(layouts);
+    saveTownNotes(notes);
+  }
+}
 function getTownLayout(key){
+  migrateLegacyMbTownLayout();
   const defaults=defaultTownLayout(key);
-  const saved=loadTownLayouts()[key];
+  const layoutsNow=loadTownLayouts();
+  let saved=layoutsNow[key];
   if(!Array.isArray(saved)||!saved.length)return defaults.map(g=>g.slice());
   const allowed=new Map(defaults.flat().map(name=>[norm(name),name]));
   const used=new Set(), out=[];
@@ -6642,11 +6718,12 @@ function getTownLayout(key){
     });
     if(g.length)out.push(g);
   });
-  // Never lose a town because of a bad/old saved layout.
-  defaults.forEach(group=>group.forEach(name=>{
-    const k=norm(name);
-    if(!used.has(k)){out.push([name]);used.add(k);}
-  }));
+  // Never lose a town because of a bad/old saved layout. Add missing names in their
+  // official default groups so no town is lost during layout migration.
+  defaults.forEach(group=>{
+    const missing=group.filter(name=>!used.has(norm(name)));
+    if(missing.length){out.push(missing);missing.forEach(name=>used.add(norm(name)));}
+  });
   return out.length?out:defaults.map(g=>g.slice());
 }
 function persistTownLayout(key,groups){
@@ -6660,11 +6737,13 @@ function resetTownLayout(){
   delete layouts.badoc;
   delete layouts.pinili;
   delete layouts.pasuquin;
+  delete layouts.mbtowns;
   saveTownLayouts(layouts);
   const notes=loadTownNotes();
   delete notes.badoc;
   delete notes.pinili;
   delete notes.pasuquin;
+  delete notes.mbtowns;
   saveTownNotes(notes);
   selectedTownMove=null;
   selectedGroupMove=null;
@@ -6736,14 +6815,14 @@ function moveTownToNewGroup(key,town){
 
 const BADOC_TOWN_GRID_RENDER_CACHE=new Map();
 function updateTownMoveStatus(){
-  ["badoc","pinili","pasuquin"].forEach(key=>{
-    const el=$(key==="badoc"?"badocMoveStatus":key==="pinili"?"piniliMoveStatus":"pasuquinMoveStatus");
+  [["badoc","badocMoveStatus","badocGrid"],["pinili","piniliMoveStatus","piniliGrid"],["pasuquin","pasuquinMoveStatus","pasuquinGrid"],["mbtowns","mbtownsMoveStatus","mbtownGrid"]].forEach(([key,statusId,gridId])=>{
+    const el=$(statusId);
     if(!el)return;
     const sel=selectedTownMove&&selectedTownMove.key===key?selectedTownMove:null;
     if(!sel){el.classList.remove("active");el.innerHTML="";return;}
     el.classList.add("active");
     el.innerHTML=`MOVE TOWN: <strong>${esc(sel.town)}</strong> — now select the destination town, or select this town again to cancel. <button type="button" class="move-cancel">CANCEL</button>`;
-    el.querySelector(".move-cancel")?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();selectedTownMove=null;updateTownMoveStatus();renderTownGrid(key==="badoc"?"badocGrid":key==="pinili"?"piniliGrid":"pasuquinGrid",towns[key],[],{});});
+    el.querySelector(".move-cancel")?.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();selectedTownMove=null;updateTownMoveStatus();renderTownGrid(gridId,towns[key],[],{});});
   });
 }
 
@@ -6757,7 +6836,7 @@ function badocTownGridSignature(id,list,rows,extraCounts,groups){
   const metricRows=[...(rows||[]),...(Array.isArray(window.__badocParcelIncomingMetricRows)?window.__badocParcelIncomingMetricRows:[])];
   const metricTown=parcelMetricTownSummary(metricRows);
   const metricSig=Object.keys(metricTown).sort().map(k=>[k,metricTown[k].bulky,metricTown[k].highValue]);
-  return JSON.stringify([id,(list||[]).map(norm),countsSig,statusSig,extra,metricSig,zoneSigOut,groupSig,loadTownNotes()?.[id==="badocGrid"?"badoc":id==="piniliGrid"?"pinili":"pasuquin"]||[],selectedGroupMove&&selectedGroupMove.key===id?selectedGroupMove.index:null,selectedTownMove&&selectedTownMove.key===id?selectedTownMove.town:null]);
+  return JSON.stringify([id,(list||[]).map(norm),countsSig,statusSig,extra,metricSig,zoneSigOut,groupSig,loadTownNotes()?.[id==="badocGrid"?"badoc":id==="piniliGrid"?"pinili":id==="pasuquinGrid"?"pasuquin":"mbtowns"]||[],selectedGroupMove&&selectedGroupMove.key===id?selectedGroupMove.index:null,selectedTownMove&&selectedTownMove.key===id?selectedTownMove.town:null]);
 }
 
 
@@ -6794,7 +6873,7 @@ function parcelMetricTownSummary(rows){
 function renderTownGrid(id,list,rows,extraCounts={}){
   const el=$(id);
   if(!el)return;
-  const key=id==="badocGrid"?"badoc":id==="piniliGrid"?"pinili":"pasuquin";
+  const key=id==="badocGrid"?"badoc":id==="piniliGrid"?"pinili":id==="pasuquinGrid"?"pasuquin":"mbtowns";
   const groups=getTownLayout(key);
   const sig=badocTownGridSignature(id,list,rows,extraCounts,groups);
   if(BADOC_TOWN_GRID_RENDER_CACHE.get(id)===sig)return;
@@ -6857,7 +6936,17 @@ function renderTownGrid(id,list,rows,extraCounts={}){
       });
       const title=document.createElement("span");
       title.className="town-card-title";
-      title.textContent="Group";
+      if(key==="pasuquin"){
+        title.textContent="PASUQUIN TOWNS";
+        title.style.display="block";
+        title.style.flex="1 1 100%";
+      }else if(key==="mbtowns"){
+        title.textContent="MB TOWNS";
+        title.style.display="block";
+        title.style.flex="1 1 100%";
+      }else{
+        title.textContent="Group";
+      }
       const note=document.createElement("div");
       note.className="town-rider-picker";
       const riderInput=document.createElement("input");
@@ -7164,7 +7253,7 @@ function buildTownPrintArea(){
   printDate.className="print-date";
   printDate.textContent="Date: "+new Date().toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
   area.appendChild(printDate);
-  [["BACARRA TOWNS","badocGrid"],["VINTAR TOWNS","piniliGrid"],["PASUQUIN TOWNS","pasuquinGrid"]].forEach(([label,id])=>{
+  [["BACARRA TOWNS","badocGrid"],["VINTAR TOWNS","piniliGrid"],["PASUQUIN TOWNS","pasuquinGrid"],["MB TOWNS","mbtownGrid"]].forEach(([label,id])=>{
     const source=document.getElementById(id);
     if(!source)return;
     const section=document.createElement("section");
@@ -7259,7 +7348,7 @@ function fillTownFilter(){
   const el=$("recordTown");
   if(!el)return;
   const currentValue=el.value||"";
-  const names=[...(towns?.badoc||[]),...(towns?.pinili||[]),...(towns?.pasuquin||[])].filter(x=>Array.isArray(x)&&x[0]).map(x=>x[0]);
+  const names=[...(towns?.badoc||[]),...(towns?.pinili||[]),...(towns?.pasuquin||[]),...(towns?.mbtowns||[])].filter(x=>Array.isArray(x)&&x[0]).map(x=>x[0]);
   const unique=[...new Set(names.map(x=>String(x||"").trim()).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b));
   el.innerHTML='<option value="">Town Name</option>'+
@@ -7385,7 +7474,8 @@ function getParcelIncomingLinehaul(){
   const configuredTowns=new Set([
     ...(Array.isArray(towns?.badoc)?towns.badoc:[]),
     ...(Array.isArray(towns?.pinili)?towns.pinili:[]),
-    ...(Array.isArray(towns?.pasuquin)?towns.pasuquin:[])
+    ...(Array.isArray(towns?.pasuquin)?towns.pasuquin:[]),
+    ...(Array.isArray(towns?.mbtowns)?towns.mbtowns:[])
   ].flatMap(x=>Array.isArray(x)?x:[]).map(x=>norm(Array.isArray(x)?x[0]:x)).filter(Boolean));
   const exceptionSet=typeof exceptionTrackingSet==="function"
     ?exceptionTrackingSet()
@@ -7444,13 +7534,16 @@ function render(){
  const badoc=v.filter(x=>x._area==="BACARRA");
  const pinili=v.filter(x=>x._area==="VINTAR");
  const pasuquin=v.filter(x=>x._area==="PASUQUIN");
+ const mbTownKeys=new Set((towns.mbtowns||[]).filter(x=>x&&x[0]).map(x=>norm(x[0])));
+ const mbTownRows=pasuquin.filter(r=>mbTownKeys.has(badocRowMeta(r).town));
+ const pasuquinCoreRows=pasuquin.filter(r=>!mbTownKeys.has(badocRowMeta(r).town));
  const incoming=parcelIncomingEnabled()?getParcelIncomingLinehaul():{total:0,townCounts:{},rows:[]};
  window.__badocParcelIncomingMetricRows=Array.isArray(incoming.rows)?incoming.rows:[];
  const allMetricRows=[...badoc,...pinili,...pasuquin,...window.__badocParcelIncomingMetricRows];
  const metricTotals=parcelMetricSummary(allMetricRows);
  const badocTownSet=new Set((towns.badoc||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
  const piniliTownSet=new Set((towns.pinili||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
- const pasuquinTownSet=new Set((towns.pasuquin||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
+ const pasuquinTownSet=new Set([...(towns.pasuquin||[]),...(towns.mbtowns||[])].filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
  const incomingBadocRows=window.__badocParcelIncomingMetricRows.filter(r=>badocTownSet.has(badocRowMeta(r).town));
  const incomingPiniliRows=window.__badocParcelIncomingMetricRows.filter(r=>piniliTownSet.has(badocRowMeta(r).town));
  const incomingPasuquinRows=window.__badocParcelIncomingMetricRows.filter(r=>pasuquinTownSet.has(badocRowMeta(r).town));
@@ -7460,7 +7553,7 @@ function render(){
  const misMetric=parcelMetricSummary(m);
  const badocIncoming=Object.entries(incoming.townCounts).reduce((n,[town,c])=>n+((towns.badoc||[]).some(x=>x&&norm(x[0])===town)?c:0),0);
  const piniliIncoming=Object.entries(incoming.townCounts).reduce((n,[town,c])=>n+((towns.pinili||[]).some(x=>x&&norm(x[0])===town)?c:0),0);
- const pasuquinIncoming=Object.entries(incoming.townCounts).reduce((n,[town,c])=>n+((towns.pasuquin||[]).some(x=>x&&norm(x[0])===town)?c:0),0);
+ const pasuquinIncoming=Object.entries(incoming.townCounts).reduce((n,[town,c])=>n+([...((towns.pasuquin||[])),...((towns.mbtowns||[]))].some(x=>x&&norm(x[0])===town)?c:0),0);
  if($("badocTotal"))$("badocTotal").textContent=(badoc.length+badocIncoming).toLocaleString();
  if($("piniliTotal"))$("piniliTotal").textContent=(pinili.length+piniliIncoming).toLocaleString();
  if($("pasuquinTotal"))$("pasuquinTotal").textContent=(pasuquin.length+pasuquinIncoming).toLocaleString();
@@ -7482,7 +7575,8 @@ function render(){
  const ms=$("misroutedSideCount"); if(ms)ms.textContent=m.length;
  renderTownGrid("badocGrid",towns.badoc,badoc,incoming.townCounts);
  renderTownGrid("piniliGrid",towns.pinili,pinili,incoming.townCounts);
- renderTownGrid("pasuquinGrid",towns.pasuquin,pasuquin,incoming.townCounts);
+ renderTownGrid("pasuquinGrid",towns.pasuquin,pasuquinCoreRows,incoming.townCounts);
+ renderTownGrid("mbtownGrid",towns.mbtowns,mbTownRows,incoming.townCounts);
  updateParcelIncomingButton();
  $("batchLabel").textContent="";
  renderRecords();renderMis();renderHistory();renderTownEdits();renderParcelUploadStatus();window.updateOperationProgress?.()
@@ -7717,7 +7811,7 @@ function updateDashboardFromParcelFilters(){
   window.__badocParcelIncomingMetricRows=Array.isArray(incoming.rows)?incoming.rows:[];
   const badocIncoming=Object.entries(incoming.townCounts).reduce((n,[town,c])=>n+((towns.badoc||[]).some(x=>x&&norm(x[0])===town)?c:0),0);
   const piniliIncoming=Object.entries(incoming.townCounts).reduce((n,[town,c])=>n+((towns.pinili||[]).some(x=>x&&norm(x[0])===town)?c:0),0);
-  const pasuquinIncoming=Object.entries(incoming.townCounts).reduce((n,[town,c])=>n+((towns.pasuquin||[]).some(x=>x&&norm(x[0])===town)?c:0),0);
+  const pasuquinIncoming=Object.entries(incoming.townCounts).reduce((n,[town,c])=>n+([...((towns.pasuquin||[])),...((towns.mbtowns||[]))].some(x=>x&&norm(x[0])===town)?c:0),0);
   // TOTAL VOLUME includes all qualifying Parcel Count records, including
   // MISROUTED parcels whose status is Delivering, Delivered, or On-Hold.
   // Area town grids are limited to their respective routed locations.
@@ -7728,7 +7822,7 @@ function updateDashboardFromParcelFilters(){
   const filterMetricTotals=parcelMetricSummary([...rows,...window.__badocParcelIncomingMetricRows]);
   const filterBadocSet=new Set((towns.badoc||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
   const filterPiniliSet=new Set((towns.pinili||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
-  const filterPasuquinSet=new Set((towns.pasuquin||[]).filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
+  const filterPasuquinSet=new Set([...(towns.pasuquin||[]),...(towns.mbtowns||[])].filter(x=>x&&x[0]).map(x=>String(x[0]).trim().toUpperCase()));
   const filterBadocMetric=parcelMetricSummary([...rows.filter(r=>norm(r?._area)==="BACARRA"),...window.__badocParcelIncomingMetricRows.filter(r=>filterBadocSet.has(badocRowMeta(r).town))]);
   const filterPiniliMetric=parcelMetricSummary([...rows.filter(r=>norm(r?._area)==="VINTAR"),...window.__badocParcelIncomingMetricRows.filter(r=>filterPiniliSet.has(badocRowMeta(r).town))]);
   const filterPasuquinMetric=parcelMetricSummary([...pasuquinRows,...window.__badocParcelIncomingMetricRows.filter(r=>filterPasuquinSet.has(badocRowMeta(r).town))]);
@@ -7781,11 +7875,12 @@ function updateDashboardFromParcelFilters(){
 
   // Keep the original three-column structure while allowing the saved custom
   // town arrangement to control the group/card order.
-  ["badocGrid","piniliGrid","pasuquinGrid"].forEach(id=>{
-    const key=id==="badocGrid"?"badoc":id==="piniliGrid"?"pinili":"pasuquin";
+  [["badocGrid","badoc","BACARRA"],["piniliGrid","pinili","VINTAR"],["pasuquinGrid","pasuquin","PASUQUIN"],["mbtownGrid","mbtowns","PASUQUIN"]].forEach(([id,key,area])=>{
     const list=towns?.[key]||[];
-    const area=id==="badocGrid"?"BACARRA":id==="piniliGrid"?"VINTAR":"PASUQUIN";
-    const areaRows=rows.filter(r=>norm(r?._area)===area);
+    let areaRows=rows.filter(r=>norm(r?._area)===area);
+    const mbSet=new Set((towns?.mbtowns||[]).filter(x=>x&&x[0]).map(x=>norm(x[0])));
+    if(key==="pasuquin")areaRows=areaRows.filter(r=>!mbSet.has(badocRowMeta(r).town));
+    else if(key==="mbtowns")areaRows=areaRows.filter(r=>mbSet.has(badocRowMeta(r).town));
     renderTownGrid(id,list,areaRows,incoming.townCounts);
     const grid=$(id);
     if(active&&grid){
@@ -7906,7 +8001,7 @@ function table(rows,isMis){
  return `<div class="tablewrap"><table class="table"><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.slice(0,2000).map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>${rows.length>2000?`<div class="hint">Showing first 2,000 rows.</div>`:""}`
 }
 function renderTownEdits(){
- [["badoc","badocEdit"],["pinili","piniliEdit"],["pasuquin","pasuquinEdit"]].forEach(([key,id])=>{$(id).innerHTML=towns[key].map((x,i)=>x[0]?`<div class="town-edit"><span>${esc(x[0])}</span><button onclick="removeTown('${key}',${i})">Remove</button></div>`:`<div class="town-edit"><span style="color:#555">— spacing —</span><button onclick="removeTown('${key}',${i})">Remove</button></div>`).join("")})
+ [["badoc","badocEdit"],["pinili","piniliEdit"],["pasuquin","pasuquinEdit"],["mbtowns","mbtownsEdit"]].forEach(([key,id])=>{$(id).innerHTML=(towns[key]||[]).map((x,i)=>x[0]?`<div class="town-edit"><span>${esc(x[0])}</span><button onclick="removeTown('${key}',${i})">Remove</button></div>`:`<div class="town-edit"><span style="color:#555">— spacing —</span><button onclick="removeTown('${key}',${i})">Remove</button></div>`).join("")})
 }
 function addTown(key){let n=prompt("Town name:");if(n&&n.trim()){towns[key].push([n.trim().toUpperCase()]);saveTownSettings();render()}}
 function removeTown(key,i){if(role!=="Admin")return alert("Admin only.");if(confirm("Remove this town/spacing row?")){towns[key].splice(i,1);saveTownSettings();render()}}
@@ -8325,7 +8420,7 @@ $("exceptionTrackingInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e
 $("clearExceptionTracking").onclick=clearExceptionTrackingNumbers;
 renderExceptionTracking();
 $("exportValid").onclick=exportValidFiltered;$("exportMis").onclick=()=>current&&download("misrouted-parcels.csv",csv(current.mis));
-$("addBadoc").onclick=()=>addTown("badoc");$("addPinili").onclick=()=>addTown("pinili");$("addPasuquin").onclick=()=>addTown("pasuquin");
+$("addBadoc").onclick=()=>addTown("badoc");$("addPinili").onclick=()=>addTown("pinili");$("addPasuquin").onclick=()=>addTown("pasuquin");$("addMBTowns").onclick=()=>addTown("mbtowns");
 $("backup").onclick=()=>download("parcel-dashboard-backup.json",JSON.stringify({towns,batches},null,2),"application/json");
 $("restoreBtn").onclick=()=>$("restoreFile").click();$("restoreFile").onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);towns=normalizeBacarraTownSettings(x.towns);batches=x.batches;current=batches[0]||null;saveTownSettings();render();alert("Backup restored.")}catch(err){alert("Invalid backup file.")}};r.readAsText(f)};
 $("resetCfr1").onclick=async()=>{
@@ -9235,6 +9330,7 @@ function renderLinehaulTownDashboard(){
   const bacarraGroups=getTownLayout("badoc");
   const vintarGroups=getTownLayout("pinili");
   const pasuquinGroups=getTownLayout("pasuquin");
+  const mbTownGroups=getTownLayout("mbtowns");
 
   function makeSection(title,groups){
     return `<div class="lh-town-section">
@@ -9246,7 +9342,7 @@ function renderLinehaulTownDashboard(){
       </div>
     </div>`;
   }
-  el.innerHTML=makeSection("BACARRA",bacarraGroups)+makeSection("VINTAR",vintarGroups)+makeSection("PASUQUIN",pasuquinGroups);
+  el.innerHTML=makeSection("BACARRA",bacarraGroups)+makeSection("VINTAR",vintarGroups)+makeSection("PASUQUIN",pasuquinGroups)+makeSection("MB TOWNS",mbTownGroups);
 }
 
 
@@ -9411,6 +9507,7 @@ function renderLinehaulCore(){
   const bacarraGroups=getTownLayout("badoc");
   const vintarGroups=getTownLayout("pinili");
   const pasuquinGroups=getTownLayout("pasuquin");
+  const mbTownGroups=getTownLayout("mbtowns");
 
   const packedForTask=(task)=>{
     const rows=task.exportRows||[];
@@ -9433,6 +9530,7 @@ function renderLinehaulCore(){
     const bacarraTotal=bacarraGroups.flat().reduce((s,t)=>s+(counts[String(t).toUpperCase()]||0),0);
     const vintarTotal=vintarGroups.flat().reduce((s,t)=>s+(counts[String(t).toUpperCase()]||0),0);
     const pasuquinTotal=pasuquinGroups.flat().reduce((s,t)=>s+(counts[String(t).toUpperCase()]||0),0);
+    const mbTownTotal=mbTownGroups.flat().reduce((s,t)=>s+(counts[String(t).toUpperCase()]||0),0);
     const packedTotal=packedForTask(task);
 
     // Misrouted for this specific Linehaul Task:
@@ -9506,6 +9604,7 @@ function renderLinehaulCore(){
         <div class="lh-task-kpi"><div class="lh-task-kpi-value">${bacarraTotal.toLocaleString()}</div><div class="lh-task-kpi-label">BACARRA</div></div>
         <div class="lh-task-kpi"><div class="lh-task-kpi-value">${vintarTotal.toLocaleString()}</div><div class="lh-task-kpi-label">VINTAR</div></div>
         <div class="lh-task-kpi"><div class="lh-task-kpi-value">${pasuquinTotal.toLocaleString()}</div><div class="lh-task-kpi-label">PASUQUIN</div></div>
+        <div class="lh-task-kpi"><div class="lh-task-kpi-value">${mbTownTotal.toLocaleString()}</div><div class="lh-task-kpi-label">MB TOWNS</div></div>
         <div class="lh-task-kpi lh-task-kpi-mis"><div class="lh-task-kpi-value">${taskMisrouted.length.toLocaleString()}</div><div class="lh-task-kpi-label">MISROUTED</div></div>
         <div class="lh-task-kpi lh-task-kpi-unmatched"><div class="lh-task-kpi-value">${taskUnmatched.length.toLocaleString()}</div><div class="lh-task-kpi-label">UNMATCHED</div></div>
         <div class="lh-task-kpi lh-task-kpi-bulky"><div class="lh-task-kpi-value">${bulkyTotal.toLocaleString()}</div><div class="lh-task-kpi-label">BULKY TOTAL</div></div>
@@ -9548,6 +9647,7 @@ function renderLinehaulCore(){
         ${makeSection("BACARRA",bacarraGroups)}
         ${makeSection("VINTAR",vintarGroups)}
         ${makeSection("PASUQUIN",pasuquinGroups)}
+        ${makeSection("MB TOWNS",mbTownGroups)}
       </div>`);
   });
 
@@ -10771,7 +10871,7 @@ window.DASHBOARD_V2_READY = true;
         const parsed=JSON.parse(await b.text());
         const candidate=Array.isArray(parsed)?{badoc:parsed}:(parsed?.towns||parsed);
         const normalized=normalizeBacarraTownSettings(candidate);
-        const savedTownSet=new Set([...(Array.isArray(candidate?.badoc)?candidate.badoc:[]),...(Array.isArray(candidate?.pinili)?candidate.pinili:[]),...(Array.isArray(candidate?.pasuquin)?candidate.pasuquin:[])].flatMap(x=>Array.isArray(x)?x:[]).map(x=>norm(Array.isArray(x)?x[0]:x)).filter(Boolean));
+        const savedTownSet=new Set([...(Array.isArray(candidate?.badoc)?candidate.badoc:[]),...(Array.isArray(candidate?.pinili)?candidate.pinili:[]),...(Array.isArray(candidate?.pasuquin)?candidate.pasuquin:[]),...(Array.isArray(candidate?.mbtowns)?candidate.mbtowns:[])].flatMap(x=>Array.isArray(x)?x:[]).map(x=>norm(Array.isArray(x)?x[0]:x)).filter(Boolean));
         const wasComplete=BACARRA_TOWN_NAMES.every(n=>savedTownSet.has(norm(n)));
         towns=normalized;
         try{localStorage.setItem("bacarra_pr_towns_v1",JSON.stringify(towns))}catch{}
@@ -11879,7 +11979,8 @@ window.updateOperationProgress=function(){
   const cfr1AllowedTowns=new Set([
     ...(Array.isArray(towns?.badoc)?towns.badoc:[]),
     ...(Array.isArray(towns?.pinili)?towns.pinili:[]),
-    ...(Array.isArray(towns?.pasuquin)?towns.pasuquin:[])
+    ...(Array.isArray(towns?.pasuquin)?towns.pasuquin:[]),
+    ...(Array.isArray(towns?.mbtowns)?towns.mbtowns:[])
   ].flatMap(x=>Array.isArray(x)?x:[]).map(v=>norm(Array.isArray(v)?v[0]:v)).filter(Boolean));
 
   const cfr1TownOf=r=>{
@@ -17656,12 +17757,20 @@ html[data-theme="dark"] #kpi #kpiCategories .v3-kpi-card.kpi-status-a .kpi-targe
       const areas=[
         ['badocGrid','badoc','BACARRA'],
         ['piniliGrid','pinili','VINTAR'],
-        ['pasuquinGrid','pasuquin','PASUQUIN']
+        ['pasuquinGrid','pasuquin','PASUQUIN'],
+        ['mbtownGrid','mbtowns','PASUQUIN']
       ];
       areas.forEach(([id,key,area])=>{
         try{
           const list=Array.isArray(towns[key])?towns[key]:[];
-          const rows=all.filter(r=>String(r?._area||'').toUpperCase()===area);
+          let rows=all.filter(r=>String(r?._area||'').toUpperCase()===area);
+          if(key==='pasuquin'){
+            const mbSet=new Set((towns.mbtowns||[]).filter(x=>x&&x[0]).map(x=>norm(x[0])));
+            rows=rows.filter(r=>!mbSet.has(badocRowMeta(r).town));
+          }else if(key==='mbtowns'){
+            const mbSet=new Set((towns.mbtowns||[]).filter(x=>x&&x[0]).map(x=>norm(x[0])));
+            rows=rows.filter(r=>mbSet.has(badocRowMeta(r).town));
+          }
           const el=document.getElementById(id);
           if(el && (!el.children.length || !el.querySelector('.town-row'))){
             BADOC_TOWN_GRID_RENDER_CACHE.delete(id);

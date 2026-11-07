@@ -60,8 +60,7 @@
     "Cabisocolan",
     "Malampa",
     "Manarang",
-    "Parparoroc",
-    "Visaya"
+    "Parparoroc"
   ],
   "PASUQUIN": [
     "Caruan",
@@ -94,7 +93,27 @@
     "Carusikis",
     "Sta. Matilde",
     "Tadao",
-    "Susugaen",
-    "Davila"
+    "Susugaen"
+  ],
+  "MB TOWNS": [
+    "Bayog",
+    "Bobon",
+    "Davila",
+    "Paayas",
+    "Bago",
+    "Cabangaran",
+    "Cabayo",
+    "Canaan",
+    "Dagupan",
+    "Dipilat",
+    "Esperanza",
+    "Isic Isic",
+    "San Jose (Lipay)",
+    "Tamdagan",
+    "Bulbulala",
+    "Ester",
+    "Mabanbanag",
+    "Namoroc",
+    "Visaya"
   ]
 }
