@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bacarra-hub-pwa-v8-linehaul-cagayan-to-bacarra';
+const CACHE_NAME = 'bacarra-hub-pwa-v11-linehaul-oid-source-retry';
 const APP_SHELL = [
   './index.html',
   './manifest-bacarra-hub-round-v3.webmanifest',
