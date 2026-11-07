@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bacarra-hub-pwa-v12-all-towns-mb-routing';
+const CACHE_NAME = 'bacarra-hub-pwa-v13-forecast-onhold-local';
 const APP_SHELL = [
   './index.html',
   './manifest-bacarra-hub-round-v3.webmanifest',
