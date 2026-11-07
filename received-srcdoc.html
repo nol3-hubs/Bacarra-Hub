@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="badoc-received-checking" content="v69">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="badoc-received-checking" content="v70">
 <title>Received Checking — Bacarra Hub</title>
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#6b7280;--line:#e5e7eb;--accent:#ee4d2d;--good:#0f9d58;--warn:#d97706;--bad:#dc2626;--shadow:0 8px 24px rgba(20,30,50,.06)}
@@ -422,7 +422,7 @@ const toggleSecondary=document.getElementById('toggleSecondary');
 toggleSecondary.addEventListener('click',()=>{const willShow=secondaryPanel.hidden;secondaryPanel.hidden=!willShow;toggleSecondary.textContent=willShow?'Hide Transported / RTS':'Show Transported / RTS';toggleSecondary.setAttribute('aria-expanded',String(willShow));});
 // Received Checking has its own, isolated SPX BRIDGE check. If the extension is absent,
 // ask the host BACARRA HUB page to show the Received Checking installer modal.
-const RECEIVED_BRIDGE_VERSION='69';
+const RECEIVED_BRIDGE_VERSION='70';
 let receivedBridgeReady=false;
 let receivedBridgeCheckInFlight=null;
 window.addEventListener('message',e=>{
@@ -457,7 +457,7 @@ async function ensureReceivedCheckingBridge(reason){
   });
   const ready=await receivedBridgeCheckInFlight;
   if(!ready){
-    const msg='SPX BRIDGE v69 is not installed or connected. Install it to sync Received Checking.';
+    const msg='SPX BRIDGE v70 is not installed or connected. Install it to sync Received Checking.';
     if(reason==='secondary') document.getElementById('secondaryStatus').textContent=msg;
     else document.getElementById('syncStatus').textContent=msg;
     if(window.parent && window.parent!==window){

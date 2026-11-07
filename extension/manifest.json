@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SPX BRIDGE",
-  "version": "69.3.0",
-  "description": "SPX Bridge for BACARRA HUB dashboard operations and Received Checking.",
+  "version": "70.0.0",
+  "description": "SPX Bridge for BACARRA HUB dashboard operations and Received Checking (v70).",
   "permissions": [
     "cookies",
     "scripting",
