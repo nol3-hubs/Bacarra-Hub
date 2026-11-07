@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="badoc-received-checking" content="v71">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="badoc-received-checking" content="v72">
 <title>Received Checking — Bacarra Hub</title>
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#6b7280;--line:#e5e7eb;--accent:#ee4d2d;--good:#0f9d58;--warn:#d97706;--bad:#dc2626;--shadow:0 8px 24px rgba(20,30,50,.06)}
@@ -422,13 +422,13 @@ const toggleSecondary=document.getElementById('toggleSecondary');
 toggleSecondary.addEventListener('click',()=>{const willShow=secondaryPanel.hidden;secondaryPanel.hidden=!willShow;toggleSecondary.textContent=willShow?'Hide Transported / RTS':'Show Transported / RTS';toggleSecondary.setAttribute('aria-expanded',String(willShow));});
 // Received Checking has its own, isolated SPX BRIDGE check. If the extension is absent,
 // ask the host BACARRA HUB page to show the Received Checking installer modal.
-const RECEIVED_BRIDGE_VERSION='70';
+const RECEIVED_BRIDGE_VERSION=72;
 let receivedBridgeReady=false;
 let receivedBridgeCheckInFlight=null;
 window.addEventListener('message',e=>{
   if(e.source!==window) return;
   const d=e.data||{};
-  if(d.source==='BADOC_SPX_BRIDGE' && d.type==='BADOC_BRIDGE_READY' && String(d.version||'').trim()===RECEIVED_BRIDGE_VERSION){
+  if(d.source==='BADOC_SPX_BRIDGE' && d.type==='BADOC_BRIDGE_READY' && Number.parseInt(String(d.version||'').trim(),10)>=RECEIVED_BRIDGE_VERSION){
     receivedBridgeReady=true;
   }
 });
@@ -441,6 +441,7 @@ async function ensureReceivedCheckingBridge(reason){
       if(settled) return;
       settled=true;
       clearTimeout(timer);
+      if(probeTimer)clearTimeout(probeTimer);
       window.removeEventListener('message',onMessage);
       receivedBridgeReady=!!ready;
       resolve(!!ready);
@@ -449,15 +450,23 @@ async function ensureReceivedCheckingBridge(reason){
     const onMessage=e=>{
       if(e.source!==window) return;
       const d=e.data||{};
-      if(d.source==='BADOC_SPX_BRIDGE' && d.type==='BADOC_BRIDGE_READY' && String(d.version||'').trim()===RECEIVED_BRIDGE_VERSION) finish(true);
+      if(d.source==='BADOC_SPX_BRIDGE' && d.type==='BADOC_BRIDGE_READY' && Number.parseInt(String(d.version||'').trim(),10)>=RECEIVED_BRIDGE_VERSION) finish(true);
     };
     window.addEventListener('message',onMessage);
-    const timer=setTimeout(()=>finish(false),700);
-    window.postMessage({source:'BADOC_PAGE',type:'BADOC_BRIDGE_HELLO',version:RECEIVED_BRIDGE_VERSION},'*');
+    let attempts=0;
+    const probe=()=>{
+      if(settled)return;
+      attempts++;
+      window.postMessage({source:'BADOC_PAGE',type:'BADOC_BRIDGE_HELLO',version:RECEIVED_BRIDGE_VERSION},'*');
+      if(attempts<16) probeTimer=setTimeout(probe,250);
+    };
+    const timer=setTimeout(()=>finish(false),4000);
+    let probeTimer=null;
+    probe();
   });
   const ready=await receivedBridgeCheckInFlight;
   if(!ready){
-    const msg='SPX BRIDGE v70 is not installed or connected. Install it to sync Received Checking.';
+    const msg='SPX BRIDGE v72 is not installed or connected. Install it to sync Received Checking.';
     if(reason==='secondary') document.getElementById('secondaryStatus').textContent=msg;
     else document.getElementById('syncStatus').textContent=msg;
     if(window.parent && window.parent!==window){
