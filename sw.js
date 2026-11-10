@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bacarra-hub-pwa-v20-bridge-v72-handshake';
+const CACHE_NAME = 'bacarra-hub-pwa-v21-badoc-ui-v20-bridge-v73';
 const APP_SHELL = [
   './index.html',
   './manifest-bacarra-hub-round-v3.webmanifest',

@@ -3,7 +3,7 @@ const TASK_LIST_PATH = "/spxdata/api/export_platform/export_task/list_for_portal
 const SIGNED_URL_PATH = "/spxdata/api/export_platform/export_task/get_signed_download_url";
 const EXPORT_NAME = "inbound_to_from_spx";
 const STATION_ID = 3061; // legacy Badoc fallback only; not used to validate hub-aware jobs
-const VERSION = "72";
+const VERSION = "73";
 const RIDER_EXPORT_PATH = "/api/driverservice/admin/driver/export";
 const RIDER_TASK_LIST_PATH = "/spxdata/api/export_platform/export_task/list_for_portal";
 const RIDER_EXPORT_NAME = "spx_driver";
@@ -11,6 +11,7 @@ const RIDER_EXPORT_BIZ_NAME = "driver";
 
 
 const POLL_MS = 3000;
+const LINEHAUL_POLL_MS = 2000;
 const MAX_WAIT_MS = 25 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 30000;
 const PARCEL_ORDER_TRACKING_ROUTE = "#/orderTracking";
@@ -80,8 +81,33 @@ const LINEHAUL_CAPTURED_HEADERS = {
 };
 
 
+// Recipient-name lookup uses the same authenticated SPX sensitive-data request
+// captured from the logged-in FMS Portal. CSRF/device cookies are refreshed at
+// runtime; the SAP request headers are a last-known fallback and may be rotated
+// by SPX. No credentials or tokens are sent to the BADOC page.
+const RECIPIENT_SENSITIVE_DATA_PATH = "/api/fleet_order/order/detail/show_sensitive_data";
+const RECIPIENT_LOOKUP_CAPTURED_HEADERS = {
+  "PG-I": "b68rPbkERm+ECE8NjMj62mLa8AHqft7RCjaksjcRhCC4f7FzAIMp4Sq3s8gJ8KH3Re9xKXnP2/vp3zok1Tk=",
+  "X-CSRFToken": "1a935bbdfc464fb0823616b97ab5843b",
+  "x-sap-ri": "43c8eb6a9f57c3579a74f53e010103e4d154b780fdfc1c88639c",
+  "app": "FMS Portal",
+  "device-id": "3364e655404ce13752579f775532ac7f",
+  "x-sap-sec": "3SBG5VydvgyRVgyR1My6VgTR1MyRVgTRVgyQVgyRogiRVlTdVgyNVgyRHaenBPdRVgyXV8yRDgiRVi3Q+DTWBQ2oD1pECDkQjOd7QpKxrrQ36VBch2yK/JiRa+8IfPrXBQd7EdH4y/CVfRpIel6/4FJUp4oCQcDYA7892hkhdPTWl7XWWK95FtluYWryQuT/h2Vy9FjVddIWeDj/paEXDwlfBjk5Eb6oufwobYhk9D58kY1G0Lfzu/VQyHOnelcwtsDodeEb9xzJHu9XwlBl2O7s39aEpIxZbwho4dlOTGG3BdaSPAdTjiLrcfP3V69ONzJSc+emE5R/plU1kDJG4xW40N9zCcsTkf8UHTIQHSjbxVxePy3Vb01CtbstU5Q9j+gZnM9QP115OOuvSGiEpVdeixbxG2AlpaQFJ9krgxUxKHILGvErU5QtWvzCqHQ5Joeq1fIQHQsKcGSkSk2AKYq72mtvOgdRVgyX99Xy8A1WX8yRVgm2BShnUgyRVf4RVgyrVgyRaVuS/E+0R5mDBAm2ljoWBozE9Ik6VgyRzk1FXkqVXkyRVgyRUgy2VgdR1gy6VgyRUgyRVf4RVgyrVgyRP/D0MUxiPu0Rh/joBA9IRx2eGOq6VgyR9k+Xz+Xm99yRVgyR"
+};
+const recipientNameCache = new Map();
+const recipientLookupByPort = new WeakMap();
+
+
 const badocPorts = new Set();
-let activeJob = null;
+// Keep export jobs independent so Sync All can run the two parcel exports in
+// parallel, then start Linehaul while the delivery export is still processing.
+// Other SPX jobs remain mutually exclusive to avoid tab/API collisions.
+const activeJobs = new Map();
+const PARALLEL_JOB_ALLOWLIST = {
+  "parcel-inbound": new Set(["parcel-delivery"]),
+  "parcel-delivery": new Set(["parcel-inbound", "linehaul"]),
+  "linehaul": new Set(["parcel-delivery"])
+};
 
 function sendToPort(port, type, data = {}) {
   if (!port) return false;
@@ -95,9 +121,31 @@ function sendToPort(port, type, data = {}) {
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+function canStartActiveJob(kind, ownerPort) {
+  if (activeJobs.has(kind)) return false;
+  const running = [...activeJobs.values()];
+  if (!running.length) return true;
+  const allowed = PARALLEL_JOB_ALLOWLIST[kind];
+  return !!allowed && running.every(job => job.ownerPort === ownerPort && allowed.has(job.kind));
+}
+
+function reserveActiveJob(kind, ownerPort, extra = {}) {
+  if (!canStartActiveJob(kind, ownerPort)) return null;
+  const job = { kind, ownerPort, startedAt: 0, spxTabId: null, cancelled: false, ...extra };
+  activeJobs.set(kind, job);
+  return job;
+}
+
+function releaseActiveJob(job) {
+  if (job && activeJobs.get(job.kind) === job) activeJobs.delete(job.kind);
+}
+
 function sendToBadoc(type, data = {}) {
-  // Every sync stays attached to the page/frame that started it.
-  if (activeJob?.ownerPort) return sendToPort(activeJob.ownerPort, type, data);
+  // Compatible parallel jobs are required to come from the same BADOC page.
+  // Keep all progress/import results attached to that page, not other tabs.
+  const owners = [...new Set([...activeJobs.values()].map(job => job.ownerPort).filter(Boolean))];
+  if (owners.length === 1) return sendToPort(owners[0], type, data);
+  if (owners.length > 1) return owners.reduce((sent, port) => sendToPort(port, type, data) || sent, false);
   let sent = false;
   for (const port of badocPorts) {
     if (sendToPort(port, type, data)) sent = true;
@@ -106,7 +154,11 @@ function sendToBadoc(type, data = {}) {
 }
 
 function progress(message, extra = {}) {
-  sendToBadoc("BADOC_SPX_PROGRESS", { message, ...extra });
+  const phase = String(extra.phase || "");
+  const kind = extra.kind || (phase.startsWith("parcel-delivery") ? "parcel-delivery" :
+    phase.startsWith("parcel-") ? "parcel-inbound" :
+    phase.startsWith("linehaul") ? "linehaul" : undefined);
+  sendToBadoc("BADOC_SPX_PROGRESS", { message, ...extra, ...(kind ? { kind } : {}) });
 }
 
 function riderProgress(message, extra = {}) {
@@ -901,7 +953,7 @@ async function runRiderJob(job) {
     console.error("BADOC SPX rider auto-import failed:", error);
     sendToBadoc("BADOC_SPX_ERROR", { message: error?.message || String(error), kind: "riders" });
   } finally {
-    activeJob = null;
+    releaseActiveJob(job);
   }
 }
 
@@ -1227,7 +1279,7 @@ async function runDeliveringReconcileJob(job) {
     if (tabId) {
       try { await chrome.tabs.remove(tabId); } catch {}
     }
-    activeJob = null;
+    releaseActiveJob(job);
   }
 }
 
@@ -1283,7 +1335,7 @@ async function runParcelDeliveryJob(job) {
       kind: "parcel-delivery"
     });
   } finally {
-    activeJob = null;
+    releaseActiveJob(job);
   }
 }
 
@@ -1323,7 +1375,7 @@ async function downloadSecondaryExport(submitted, job) {
   // Do not validate the export task's station_id here. SPX task metadata can
   // report the account/session station (or a legacy hub ID), not the row-level
   // destination selected by the export. The downloaded CSV is filtered in
-  // Received Checking using its Current Station and Destination Station fields.
+  // Dispatch using its Current Station and Destination Station fields.
   progress(`${submitted.label} export complete. Getting signed download URL…`, { phase: "parcel-secondary-download-url", kind: "parcel-secondary", taskId: submitted.taskId, statusName: submitted.statusName });
   const signedUrl = await getSignedDownloadUrl(submitted.taskId);
   const csv = await downloadCsv(signedUrl);
@@ -1363,7 +1415,7 @@ async function runParcelSecondaryJob(job) {
     console.error("BADOC SPX secondary parcel sync failed:", error);
     sendToBadoc("BADOC_SPX_ERROR", { message: error?.message || String(error), kind: "parcel-secondary" });
   } finally {
-    activeJob = null;
+    releaseActiveJob(job);
   }
 }
 
@@ -1432,7 +1484,7 @@ async function runParcelInboundJob(job) {
     });
   } finally {
     // Direct API mode does not create a temporary SPX tab/window.
-    activeJob = null;
+    releaseActiveJob(job);
   }
 }
 
@@ -1449,7 +1501,7 @@ function isTargetTask(task, job) {
   return String(condition?.status ?? "") === "0" || Object.keys(condition).length === 0;
 }
 
-async function waitForCompletion(taskId, startSec, job) {
+async function waitForCompletion(taskId, startSec, job, pollIntervalMs = POLL_MS) {
   const deadline = Date.now() + MAX_WAIT_MS;
   let lastStatus = null;
   let lastQueue = null;
@@ -1491,7 +1543,7 @@ async function waitForCompletion(taskId, startSec, job) {
       });
     }
 
-    await sleep(POLL_MS);
+    await sleep(Math.max(1000, Number(pollIntervalMs)||POLL_MS));
   }
 
   throw new Error("SPX export is still queued after 25 minutes.");
@@ -1508,6 +1560,176 @@ async function getSpxCookieValue(names) {
     } catch {}
   }
   return "";
+}
+
+async function getRecipientLookupHeaders() {
+  const csrf = await getSpxCookieValue(["csrftoken", "csrf_token", "csrfToken", "X-CSRFToken"]);
+  const deviceId = await getSpxCookieValue(["spx-admin-device-id", "device-id", "device_id", "deviceId"]);
+  return {
+    "Accept": "application/json, text/plain, */*",
+    "Referer": `${SPX_ORIGIN}/`,
+    "app": RECIPIENT_LOOKUP_CAPTURED_HEADERS.app,
+    "PG-I": RECIPIENT_LOOKUP_CAPTURED_HEADERS["PG-I"],
+    "X-CSRFToken": csrf || RECIPIENT_LOOKUP_CAPTURED_HEADERS["X-CSRFToken"],
+    "x-sap-ri": RECIPIENT_LOOKUP_CAPTURED_HEADERS["x-sap-ri"],
+    "device-id": deviceId || RECIPIENT_LOOKUP_CAPTURED_HEADERS["device-id"],
+    "x-sap-sec": RECIPIENT_LOOKUP_CAPTURED_HEADERS["x-sap-sec"]
+  };
+}
+
+function extractRecipientName(payload) {
+  const invalid = /^(?:null|undefined|n\/a|none|-)$/i;
+  const nameKeys = new Set(["buyer_name", "receiver_name", "recipient_name"]);
+  const detailKeys = [
+    "data_detail", "dataDetail", "sensitive_data", "sensitive_value",
+    "data_value", "field_value", "buyer_info", "value", "detail", "text", "name"
+  ];
+  const clean = value => {
+    if (typeof value !== "string") return "";
+    const text = value.trim();
+    if (!text || invalid.test(text) || /^\*+$/.test(text)) return "";
+    return text;
+  };
+
+  // First prefer an explicitly named buyer/receiver field anywhere in the
+  // response. SPX's show_sensitive_data response may not use buyer_name;
+  // current responses can put the selected field in data.data_detail.
+  function findNamed(value, depth = 0, seen = new Set()) {
+    if (!value || typeof value !== "object" || depth > 10 || seen.has(value)) return "";
+    seen.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) { const found = findNamed(item, depth + 1, seen); if (found) return found; }
+      return "";
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (nameKeys.has(String(key).toLowerCase())) {
+        const direct = clean(child);
+        if (direct) return direct;
+        if (child && typeof child === "object") {
+          for (const candidateKey of ["value", "text", "name", "data_detail", "dataDetail"]) {
+            const candidate = clean(child[candidateKey]);
+            if (candidate) return candidate;
+          }
+        }
+      }
+    }
+    for (const child of Object.values(value)) {
+      const found = findNamed(child, depth + 1, seen);
+      if (found) return found;
+    }
+    return "";
+  }
+
+  // Unwrap the value returned for data_field=buyer_name. The endpoint's
+  // selected value is commonly carried as `data.data_detail`, rather than
+  // `data.buyer_name`. Only inspect the `data` payload, not retcode/message.
+  function unwrapSelected(value, depth = 0, seen = new Set()) {
+    if (depth > 10 || value == null) return "";
+    const direct = clean(value);
+    if (direct) {
+      // Some gateways JSON-encode the selected value inside a string.
+      if ((direct.startsWith("{") && direct.endsWith("}")) || (direct.startsWith("[") && direct.endsWith("]"))) {
+        try { return unwrapSelected(JSON.parse(direct), depth + 1, seen); } catch {}
+      }
+      return direct;
+    }
+    if (typeof value !== "object" || seen.has(value)) return "";
+    seen.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) { const found = unwrapSelected(item, depth + 1, seen); if (found) return found; }
+      return "";
+    }
+    // Prioritize the detail/value keys used by the sensitive-data endpoint.
+    for (const key of detailKeys) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        const found = unwrapSelected(value[key], depth + 1, seen);
+        if (found) return found;
+      }
+    }
+    // The selected `data` subtree should contain the sensitive value only.
+    // A fallback to its first non-empty scalar handles minor SPX schema
+    // variations (e.g. data_detail_value) without reading unrelated metadata.
+    for (const [key, child] of Object.entries(value)) {
+      if (/^(?:retcode|code|message|msg|success|status|field|data_field)$/i.test(key)) continue;
+      if (child && typeof child === "object") {
+        const found = unwrapSelected(child, depth + 1, seen);
+        if (found) return found;
+      }
+    }
+    for (const [key, child] of Object.entries(value)) {
+      if (/^(?:retcode|code|message|msg|success|status|field|data_field)$/i.test(key)) continue;
+      const found = clean(child);
+      if (found) return found;
+    }
+    return "";
+  }
+
+  const explicitlyNamed = findNamed(payload);
+  if (explicitlyNamed) return explicitlyNamed;
+  return unwrapSelected(payload?.data ?? payload);
+}
+
+async function fetchRecipientName(shipmentId) {
+  const query = new URLSearchParams({ shipment_id: shipmentId, data_field: "buyer_name" });
+  const response = await extensionFetchText(`${SPX_ORIGIN}${RECIPIENT_SENSITIVE_DATA_PATH}?${query}`, {
+    method: "GET",
+    headers: await getRecipientLookupHeaders()
+  });
+  const json = parseJsonResponse(`SPX recipient-name lookup for ${shipmentId}`, response);
+  if (!response.ok || (json?.retcode !== undefined && Number(json.retcode) !== 0)) {
+    throw new Error(json?.message || `SPX recipient-name lookup failed for ${shipmentId} (HTTP ${response.status}).`);
+  }
+  return extractRecipientName(json);
+}
+
+async function runRecipientNameLookup(port, shipmentIds, lookupJob) {
+  const ids = [...new Set((Array.isArray(shipmentIds) ? shipmentIds : [])
+    .map(v => String(v || "").trim().toUpperCase())
+    .filter(v => /^[A-Z0-9_-]{6,80}$/.test(v)))].slice(0, 2000);
+  const names = {};
+  let completed = 0, found = 0, failed = 0, firstError = "";
+  const update = () => sendToPort(port, "BADOC_SPX_RECIPIENT_NAMES_PROGRESS", { completed, total: ids.length, found, failed });
+  if (!ids.length) {
+    sendToPort(port, "BADOC_SPX_RECIPIENT_NAMES_RESULTS", { names, shipmentIds: [], total: 0, found: 0, failed: 0 });
+    return;
+  }
+  let cursor = 0;
+  const worker = async () => {
+    while (!lookupJob.cancelled) {
+      const index = cursor++;
+      if (index >= ids.length) return;
+      const id = ids[index];
+      try {
+        let name = recipientNameCache.get(id) || "";
+        if (!name) {
+          name = await fetchRecipientName(id);
+          if (name) {
+            recipientNameCache.set(id, name);
+            if (recipientNameCache.size > 5000) recipientNameCache.delete(recipientNameCache.keys().next().value);
+          }
+        }
+        if (name) { names[id] = name; found++; }
+      } catch (error) {
+        failed++;
+        if (!firstError) firstError = error?.message || String(error);
+      }
+      completed++;
+      if (completed === 1 || completed % 5 === 0 || completed === ids.length) update();
+      // Keep the portal endpoint below a burst rate while letting the page remain responsive.
+      await sleep(100);
+    }
+  };
+  try {
+    await Promise.all(Array.from({ length: Math.min(3, ids.length) }, () => worker()));
+    if (!lookupJob.cancelled) {
+      sendToPort(port, "BADOC_SPX_RECIPIENT_NAMES_RESULTS", {
+        names, shipmentIds: ids, total: ids.length, found, failed,
+        error: failed && !found ? firstError : ""
+      });
+    }
+  } finally {
+    if (recipientLookupByPort.get(port) === lookupJob) recipientLookupByPort.delete(port);
+  }
 }
 
 async function getLinehaulRequestHeaders() {
@@ -1575,7 +1797,7 @@ async function runJob(job) {
       Math.floor((job.startedAt - 10 * 60 * 1000) / 1000)
     );
 
-    const completed = await waitForCompletion(taskId, waitStartSec, job);
+    const completed = await waitForCompletion(taskId, waitStartSec, job, LINEHAUL_POLL_MS);
 
     if (!isTargetTask(completed, job)) {
       throw new Error("The completed SPX task does not match the expected Linehaul export.");
@@ -1621,16 +1843,18 @@ async function runJob(job) {
     });
   } finally {
     // Direct API mode does not create or manage a temporary SPX tab/window.
-    activeJob = null;
+    releaseActiveJob(job);
   }
 }
 
 function isBadocPageUrl(url) {
   const u = String(url || "");
-  return u.startsWith("file://") ||
-    /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?\//i.test(u) ||
-    /^https:\/\/nol3-hubs\.github\.io(?::\d+)?\//i.test(u) ||
-    /^https:\/\/(?:[^./]+\.)+github\.io(?::\d+)?\//i.test(u);
+  if (u.startsWith("file://") || /^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?\//i.test(u)) return true;
+  try {
+    const parsed = new URL(u);
+    return parsed.protocol === "https:" &&
+      (parsed.hostname === "github.io" || parsed.hostname.endsWith(".github.io"));
+  } catch (_) { return false; }
 }
 
 function isBadocPageSender(sender) {
@@ -1651,7 +1875,7 @@ chrome.runtime.onConnect.addListener(port => {
 
   const senderUrl = String(port.sender?.url || "");
   if (!isBadocPageSender(port.sender)) {
-    console.warn("SPX BRIDGE rejected BADOC page origin:", senderUrl);
+    console.warn("Bacarra Hub Extension rejected BADOC page origin:", senderUrl);
     try { port.disconnect(); } catch {}
     return;
   }
@@ -1664,51 +1888,55 @@ chrome.runtime.onConnect.addListener(port => {
     const failBusy = (kind, text = "A BADOC SPX sync is already running.") =>
       sendToPort(port, "BADOC_SPX_ERROR", { message: text, ...(kind ? { kind } : {}) });
 
+    if (type === "BADOC_LOOKUP_RECIPIENT_NAMES") {
+      const previous = recipientLookupByPort.get(port);
+      if (previous) previous.cancelled = true;
+      const lookupJob = { cancelled: false };
+      recipientLookupByPort.set(port, lookupJob);
+      void runRecipientNameLookup(port, message?.shipmentIds, lookupJob).catch(error => {
+        console.error("BADOC SPX recipient-name lookup failed:", error);
+        sendToPort(port, "BADOC_SPX_RECIPIENT_NAMES_ERROR", { message: error?.message || String(error) });
+      });
+      return;
+    }
+
     if (type === "BADOC_START_PARCEL_SECONDARY_SYNC") {
-      if (activeJob) { failBusy("parcel-secondary"); return; }
-      activeJob = { kind: "parcel-secondary", ownerPort: port, startedAt: 0, spxTabId: null, cancelled: false };
-      void runParcelSecondaryJob(activeJob);
+      const job = reserveActiveJob("parcel-secondary", port);
+      if (!job) { failBusy("parcel-secondary"); return; }
+      void runParcelSecondaryJob(job);
       return;
     }
 
     if (type === "BADOC_START_RECEIVED_CHECKING_INBOUND_SYNC") {
-      if (activeJob) { failBusy("parcel-inbound"); return; }
-      activeJob = {
-        kind: "parcel-inbound", ownerPort: port, receivedChecking: true,
-        startedAt: 0, spxTabId: null, cancelled: false
-      };
-      void runParcelInboundJob(activeJob);
+      const job = reserveActiveJob("parcel-inbound", port, { receivedChecking: true });
+      if (!job) { failBusy("parcel-inbound"); return; }
+      void runParcelInboundJob(job);
       return;
     }
 
     if (type === "BADOC_START_RIDER_SYNC") {
-      if (activeJob) { failBusy("riders"); return; }
-      activeJob = {
-        kind: "riders", ownerPort: port,
+      const job = reserveActiveJob("riders", port, {
         hubName: String(message?.hubName || "").trim(),
         hubCode: String(message?.hubCode || "").trim(),
-        hubId: Number(message?.hubId || 0) || 0,
-        startedAt: 0, spxTabId: null, cancelled: false
-      };
-      void runRiderJob(activeJob);
+        hubId: Number(message?.hubId || 0) || 0
+      });
+      if (!job) { failBusy("riders"); return; }
+      void runRiderJob(job);
       return;
     }
 
     if (type === "BADOC_START_LINEHAUL_SYNC") {
-      if (activeJob) { failBusy("linehaul"); return; }
-      activeJob = {
-        kind: "linehaul", ownerPort: port,
+      const job = reserveActiveJob("linehaul", port, {
         hubName: String(message?.hubName || "").trim(),
         hubCode: String(message?.hubCode || "").trim(),
-        hubId: Number(message?.hubId || 0) || 0,
-        startedAt: 0, spxTabId: null, cancelled: false
-      };
-      void runJob(activeJob);
+        hubId: Number(message?.hubId || 0) || 0
+      });
+      if (!job) { failBusy("linehaul"); return; }
+      void runJob(job);
       return;
     }
 
     if (type === "BADOC_START_DELIVERING_RECONCILE") {
-      if (activeJob) { failBusy("delivering-reconcile", "Another SPX Bridge job is already running."); return; }
       const trackingNumbers = [...new Set((Array.isArray(message.trackingNumbers) ? message.trackingNumbers : [])
         .map(v => String(v || "").trim()).filter(Boolean))];
       if (!trackingNumbers.length) {
@@ -1718,18 +1946,14 @@ chrome.runtime.onConnect.addListener(port => {
         });
         return;
       }
-      activeJob = {
-        kind: "delivering-reconcile", ownerPort: port, trackingNumbers,
-        startedAt: 0, spxTabId: null, cancelled: false
-      };
-      void runDeliveringReconcileJob(activeJob);
+      const job = reserveActiveJob("delivering-reconcile", port, { trackingNumbers });
+      if (!job) { failBusy("delivering-reconcile", "Another SPX Bridge job is already running."); return; }
+      void runDeliveringReconcileJob(job);
       return;
     }
 
     if (type === "BADOC_START_PARCEL_DELIVERY_SYNC") {
-      if (activeJob) { failBusy("parcel-delivery"); return; }
-      activeJob = {
-        kind: "parcel-delivery", ownerPort: port,
+      const job = reserveActiveJob("parcel-delivery", port, {
         hubName: String(message?.hubName || "").trim(),
         hubCode: String(message?.hubCode || "").trim(),
         hubId: Number(message?.hubId || 0) || 0,
@@ -1740,34 +1964,33 @@ chrome.runtime.onConnect.addListener(port => {
         assignedStart: message?.assignedStart,
         assignedEnd: message?.assignedEnd,
         assignedLabel: message?.assignedLabel,
-        createdEndUnix: message?.createdEndUnix,
-        startedAt: 0, spxTabId: null, cancelled: false
-      };
-      void runParcelDeliveryJob(activeJob);
+        createdEndUnix: message?.createdEndUnix
+      });
+      if (!job) { failBusy("parcel-delivery"); return; }
+      void runParcelDeliveryJob(job);
       return;
     }
 
     if (type === "BADOC_START_PARCEL_INBOUND_SYNC") {
-      if (activeJob) { failBusy("parcel-inbound"); return; }
-      activeJob = {
-        kind: "parcel-inbound", ownerPort: port,
+      const job = reserveActiveJob("parcel-inbound", port, {
         hubName: String(message?.hubName || "").trim(),
         hubCode: String(message?.hubCode || "").trim(),
-        hubId: Number(message?.hubId || 0) || 0,
-        startedAt: 0, spxTabId: null, cancelled: false
-      };
-      void runParcelInboundJob(activeJob);
+        hubId: Number(message?.hubId || 0) || 0
+      });
+      if (!job) { failBusy("parcel-inbound"); return; }
+      void runParcelInboundJob(job);
       return;
     }
 
-    if (type === "BADOC_ABORT_SYNC" && activeJob?.ownerPort === port) {
-      activeJob.cancelled = true;
+    if (type === "BADOC_ABORT_SYNC") {
+      for (const job of activeJobs.values()) if (job.ownerPort === port) job.cancelled = true;
     }
   });
-
   port.onDisconnect.addListener(() => {
     badocPorts.delete(port);
-    if (activeJob?.ownerPort === port) activeJob.cancelled = true;
+    for (const job of activeJobs.values()) if (job.ownerPort === port) job.cancelled = true;
+    const recipientLookup = recipientLookupByPort.get(port);
+    if (recipientLookup) recipientLookup.cancelled = true;
   });
 });
 
@@ -1784,6 +2007,286 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     ok: true,
     version: VERSION,
     connected: badocPorts.size > 0,
-    active: Boolean(activeJob)
+    active: activeJobs.size > 0
   });
+});
+
+
+// ───────── Integrated POD/POOH Checker background actions ─────────
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!message || message.target !== "POD_CHECKER_BACKGROUND") return false;
+
+  // Run Google Sheets requests from the MV3 service worker. This avoids the
+  // extension-page CORS failure seen when calling docs.google.com directly.
+  if (message.action === "FETCH_GOOGLE_TEXT") {
+    (async () => {
+      let requested;
+      try {
+        requested = new URL(String(message.url || ""));
+        if (requested.protocol !== "https:" || requested.hostname !== "docs.google.com" || !requested.pathname.startsWith("/spreadsheets/")) {
+          throw new Error("Blocked Google request: only Google Sheets spreadsheet URLs are allowed.");
+        }
+        const response = await fetch(requested.href, {
+          method: "GET",
+          credentials: "include",
+          redirect: "follow",
+          cache: "no-store"
+        });
+        const text = await response.text();
+        if (!response.ok) {
+          const diagnostic = text
+            .replace(/<script[\s\S]*?<\/script>/gi, " ")
+            .replace(/<style[\s\S]*?<\/style>/gi, " ")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&nbsp;|&#160;/gi, " ")
+            .replace(/&amp;/gi, "&")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 260);
+          if (response.status === 401 || response.status === 403) {
+            throw new Error(`Google returned HTTP ${response.status}. Confirm this Chrome profile is signed in and has Viewer access to the selected Daily Ops Dashboard.${diagnostic ? ` Google detail: ${diagnostic}` : ""}`);
+          }
+          throw new Error(`Google returned HTTP ${response.status} while reading the selected dashboard.${diagnostic ? ` Google detail: ${diagnostic}` : ""}`);
+        }
+        sendResponse({ ok: true, status: response.status, finalUrl: response.url, text });
+      } catch (error) {
+        const messageText = error?.message || String(error);
+        if (/Failed to fetch|NetworkError|fetch failed/i.test(messageText)) {
+          sendResponse({ ok: false, error: "Google Sheets could not be reached from the extension. Check your internet connection, sign-in, and Google access, then reload the extension and try again." });
+        } else {
+          sendResponse({ ok: false, error: messageText });
+        }
+      }
+    })();
+    return true;
+  }
+
+  if (message.action !== "OPEN_SPX_PORTAL") return false;
+
+  (async () => {
+    const proofOfOnHoldUrl = "https://spx.shopee.ph/#/orderDetail/PROOF_OF_ONHOLD/proof_of_onhold?originUrl=%2ForderTracking&module=am_hubDeliveryManagement&stationType=AM_HUB";
+    const isProofPage = url => /PROOF_OF_ONHOLD/i.test(String(url || "")) && /proof_of_onhold/i.test(String(url || ""));
+
+    // Reuse a Proof of On Hold tab if it already exists. Otherwise reuse another
+    // SPX tab and route it to the required page. Create a background tab only
+    // when SPX is completely closed; never activate the tab or switch the user away.
+    const spxTabs = await chrome.tabs.query({ url: `${SPX_ORIGIN}/*` });
+    const preferredWindowId = sender?.tab?.windowId;
+    const sortTabs = (a, b) => {
+      const aSameWindow = a.windowId === preferredWindowId ? 1 : 0;
+      const bSameWindow = b.windowId === preferredWindowId ? 1 : 0;
+      if (aSameWindow !== bSameWindow) return bSameWindow - aSameWindow;
+      return (b.lastAccessed || 0) - (a.lastAccessed || 0);
+    };
+    const existingProofTabs = spxTabs.filter(tab => isProofPage(tab.url)).sort(sortTabs);
+    const otherSpxTabs = spxTabs.filter(tab => !isProofPage(tab.url)).sort(sortTabs);
+    let tab = existingProofTabs[0] || otherSpxTabs[0] || null;
+    let created = false;
+    let navigated = false;
+
+    if (!tab) {
+      tab = await chrome.tabs.create({ url: proofOfOnHoldUrl, active: false });
+      created = true;
+    } else if (!isProofPage(tab.url)) {
+      tab = await chrome.tabs.update(tab.id, { url: proofOfOnHoldUrl, active: false });
+      navigated = true;
+    }
+    if (!tab?.id) throw new Error("Chrome could not prepare an SPX tab.");
+
+    // Wait for navigation to finish without activating the background tab.
+    const navDeadline = Date.now() + 60000;
+    let tabState = await chrome.tabs.get(tab.id);
+    while (tabState.status !== "complete" && Date.now() < navDeadline) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      tabState = await chrome.tabs.get(tab.id);
+    }
+    if (tabState.status !== "complete") throw new Error("SPX navigation timed out. The background tab is still loading.");
+
+    // A tab may have been open before Bacarra Hub Extension was reloaded. Chrome
+    // does not retroactively run manifest content_scripts in an existing tab.
+    // Inject both POD bridge halves explicitly. Each has an installation guard,
+    // so this is safe for newly opened tabs and repeat checks too.
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: "ISOLATED",
+        files: ["pod-checker/content.js"]
+      });
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: "MAIN",
+        files: ["pod-checker/page_bridge.js"]
+      });
+    } catch (injectionError) {
+      const detail = injectionError?.message || String(injectionError);
+      throw new Error(`Bacarra Hub Extension could not attach its SPX checker scripts to this tab: ${detail}. Check that the extension has site access to https://spx.shopee.ph, then reload SPX and try again.`);
+    }
+    await new Promise(resolve => setTimeout(resolve, 180));
+
+    // Confirm the receiver exists before requesting SPA route readiness. This
+    // returns a targeted error instead of the generic Chrome messaging error.
+    // First wait for the extension content script / page-world bridge to answer
+    // a fast PING. Retry only connection-startup failures, never queue repeated
+    // long WAIT_FMS_READY commands against the same page.
+    const bridgeDeadline = Date.now() + 12000;
+    let bridgePing = null;
+    let bridgeError = null;
+    while (Date.now() < bridgeDeadline) {
+      try {
+        bridgePing = await chrome.tabs.sendMessage(tab.id, { target: "pood-page-v19", command: "PING" });
+        if (bridgePing?.ok && String(bridgePing.bridgeVersion || "") === "19") break;
+        bridgeError = new Error(bridgePing?.error || (bridgePing?.ok ? "A stale SPX POD receiver answered instead of receiver v19." : "SPX page bridge did not answer its readiness ping."));
+      } catch (error) {
+        bridgeError = error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    if (!bridgePing?.ok || String(bridgePing.bridgeVersion || "") !== "19") {
+      throw new Error(bridgeError?.message || "Bacarra Hub Extension could not connect to the SPX page receiver v19. Reload the extension and try again.");
+    }
+
+    // SPX is a SPA. Ask once for bounded route/content readiness.
+    let readiness;
+    try {
+      readiness = await chrome.tabs.sendMessage(tab.id, { target: "pood-page-v19", command: "WAIT_FMS_READY" });
+    } catch (error) {
+      throw new Error(error?.message || "SPX Proof of On Hold page did not respond. Reload SPX and try again.");
+    }
+    if (!readiness?.ok) {
+      throw new Error(readiness?.error || "SPX Proof of On Hold page is not ready. Check your SPX sign-in and try again.");
+    }
+
+    sendResponse({
+      ok: true,
+      created,
+      reused: !created,
+      navigated,
+      loaded: true,
+      pageReady: true,
+      waitedMs: readiness.waitedMs,
+      background: true,
+      tabId: tab.id,
+      windowId: tab.windowId,
+      url: proofOfOnHoldUrl
+    });
+  })().catch(error => {
+    console.error("POD Checker could not prepare the SPX Proof of On Hold page:", error);
+    sendResponse({ ok: false, error: error?.message || String(error) });
+  });
+
+  return true;
+});
+
+// Dashboard-hosted POD/POOH Checker RPC. The website UI never receives Chrome APIs
+// directly; its content-script bridge requests these tightly-scoped operations.
+async function podDiscoverWorksheetGidsOnPage() {
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  const labelOf = el => String(el.getAttribute('aria-label') || el.getAttribute('data-tooltip') || el.getAttribute('title') || el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+  const getTabs = () => {
+    const selectors = ['.docs-sheet-tab', '[role="tab"]', '[data-sheet-id]', '[data-sheetid]'];
+    const raw = selectors.flatMap(selector => Array.from(document.querySelectorAll(selector)));
+    const seen = new Set();
+    const nodes = raw.filter(el => {
+      const target = el.closest('.docs-sheet-tab,[role="tab"]') || el;
+      if (seen.has(target)) return false;
+      seen.add(target);
+      const rect = target.getBoundingClientRect();
+      if (rect.height < 8) return false;
+      const cls = String(target.className || '');
+      const isSheetClass = /docs-sheet-tab/i.test(cls);
+      const isBottomRole = target.getAttribute('role') === 'tab' && rect.top > window.innerHeight * 0.55;
+      const hasSheetId = target.hasAttribute('data-sheet-id') || target.hasAttribute('data-sheetid');
+      if (!isSheetClass && !isBottomRole && !hasSheetId) return false;
+      const label = labelOf(target);
+      return !!label && label.length < 100;
+    });
+    if (nodes.length) return nodes;
+    return Array.from(document.querySelectorAll('button,[role="button"],[aria-label]')).filter(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.height < 8 || rect.top < window.innerHeight * 0.68) return false;
+      const label = labelOf(el);
+      return !!label && label.length < 70 && !/add sheet|all sheets|explore|keyboard|status|comments|share/i.test(label);
+    });
+  };
+  const gidFromUrl = () => {
+    const url = new URL(location.href);
+    return url.hash.match(/(?:^|[&#])gid=(\d+)/)?.[1] || url.search.match(/[?&]gid=(\d+)/)?.[1] || '';
+  };
+  const directGid = el => {
+    const values = [el.getAttribute('data-sheet-id'), el.getAttribute('data-sheetid'), el.getAttribute('data-gid')];
+    for (const value of values) if (value && /^\d+$/.test(value)) return value;
+    const html = String(el.outerHTML || '');
+    return html.match(/(?:sheetId|sheet_id|gridId|data-sheet-id|data-sheetid|data-gid)["'\s:=]+(\d+)/i)?.[1] || '';
+  };
+  const beforeGid = gidFromUrl();
+  const initialTabs = getTabs();
+  if (!initialTabs.length) return { gids: beforeGid ? [beforeGid] : [], labels: [], activeGid: beforeGid, method: 'url-only', error: 'Google Sheets worksheet tabs were not exposed in the page DOM.' };
+  const labels = initialTabs.map(labelOf);
+  const direct = initialTabs.map(directGid);
+  const inventoryIndex = labels.findIndex(label => /\binventory\b/i.test(label));
+  let activeIndex = initialTabs.findIndex(el => el.getAttribute('aria-selected') === 'true' || el.getAttribute('aria-pressed') === 'true' || /selected|active/i.test(String(el.className || '')));
+  if (activeIndex < 0) activeIndex = initialTabs.findIndex(el => el.getAttribute('tabindex') === '0');
+  if (activeIndex < 0 && beforeGid) activeIndex = initialTabs.findIndex(el => directGid(el) === beforeGid);
+  const gids = new Set(direct.filter(Boolean));
+  if (beforeGid) gids.add(beforeGid);
+  let inventoryGid = inventoryIndex >= 0 ? (direct[inventoryIndex] || '') : '';
+  const order = inventoryIndex >= 0 ? [inventoryIndex] : initialTabs.map((_, index) => index);
+  for (const index of order) {
+    const current = getTabs();
+    const el = current[index];
+    if (!el) continue;
+    const knownGid = directGid(el);
+    if (knownGid) gids.add(knownGid);
+    if (index === activeIndex) {
+      if (index === inventoryIndex) inventoryGid = beforeGid || knownGid || inventoryGid;
+      continue;
+    }
+    try { el.scrollIntoView({ block: 'nearest', inline: 'nearest' }); el.click(); } catch (_) { continue; }
+    let gid = '';
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await sleep(80);
+      gid = gidFromUrl();
+      if (gid && gid !== beforeGid) break;
+    }
+    if (!gid) gid = gidFromUrl();
+    if (gid) gids.add(gid);
+    const now = getTabs()[index];
+    const attrGid = now ? directGid(now) : knownGid;
+    if (attrGid) gids.add(attrGid);
+    if (index === inventoryIndex) inventoryGid = gid || attrGid || inventoryGid;
+  }
+  const restoreTabs = getTabs();
+  let restore = activeIndex >= 0 ? restoreTabs[activeIndex] : null;
+  if (!restore && beforeGid) restore = restoreTabs.find(el => directGid(el) === beforeGid) || null;
+  if (restore) { try { restore.click(); await sleep(220); } catch (_) {} }
+  const restoredGid = gidFromUrl();
+  return { gids: [...gids], labels, activeGid: beforeGid || restoredGid, inventoryGid, method: 'tab-strip-scan', restored: !beforeGid || restoredGid === beforeGid };
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (!message || message.target !== "POD_CHECKER_RPC") return false;
+  (async () => {
+    const args = Array.isArray(message.args) ? message.args : [];
+    if (message.method === "tabs.query") return await chrome.tabs.query(args[0] || {});
+    if (message.method === "tabs.sendMessage") {
+      const tabId = Number(args[0]);
+      if (!Number.isInteger(tabId)) throw new Error("Invalid SPX tab ID.");
+      return await chrome.tabs.sendMessage(tabId, args[1] || {});
+    }
+    if (message.method === "scripting.discoverWorksheetGids") {
+      const tabId = Number(args[0]);
+      if (!Number.isInteger(tabId)) throw new Error("Invalid Google Sheets tab ID.");
+      const tab = await chrome.tabs.get(tabId);
+      const url = new URL(String(tab.url || ""));
+      if (url.protocol !== "https:" || !["docs.google.com", "sheets.google.com"].includes(url.hostname) || !/\/spreadsheets(?:\/|$)/i.test(url.pathname)) {
+        throw new Error("Selected tab is not a Google Sheets spreadsheet.");
+      }
+      const injected = await chrome.scripting.executeScript({ target: { tabId }, world: "ISOLATED", func: podDiscoverWorksheetGidsOnPage });
+      const result = injected?.[0]?.result;
+      if (!result) throw new Error("The Google Sheets page did not return worksheet information.");
+      return result;
+    }
+    throw new Error(`Unsupported POD Checker RPC method: ${String(message.method || "")}`);
+  })().then(result => sendResponse({ ok: true, result })).catch(error => sendResponse({ ok: false, error: error?.message || String(error) }));
+  return true;
 });
