@@ -66,19 +66,6 @@
     <button data-page="linehaul"><span class="ico">⇄</span> Linehaul Task</button>
     <button data-page="receivedChecking"><span class="ico">✓</span> Dispatch</button>
     <button data-page="podPoohChecker"><span class="ico">◎</span> POD/POOH Checker</button>
-    <div class="daily-data-nav" id="dailyDataNav">
-      <button type="button" class="daily-data-toggle" id="dailyDataToggle" aria-expanded="false" aria-controls="dailyDataSubmenu">
-        <span class="ico">▤</span> Daily Data <span class="daily-data-chevron">›</span>
-      </button>
-      <div class="daily-data-submenu" id="dailyDataSubmenu">
-        <button type="button" data-page="dailyPickup"><span class="sub-ico">•</span> Pickup</button>
-        <button type="button" data-page="dailyPerformance"><span class="sub-ico">•</span> Performance</button>
-        
-        <button type="button" data-page="dailyConsolidated"><span class="sub-ico">•</span> Consolidated</button>
-        <button type="button" data-page="dailyEod"><span class="sub-ico">•</span> EOD Data</button>
-      </div>
-    </div>
-    <button data-page="dailyHistory"><span class="ico">◷</span> Daily History</button>
     <button data-page="ridersData"><span class="ico">♙</span> Riders Data</button>
     <button data-page="kpi"><span class="ico">▣</span> KPI</button>
     <button data-page="instructions"><span class="ico">☷</span> Instructions</button>
@@ -177,43 +164,6 @@
       </div>
     </div>
   
-
-<div class="section dashboard-eod-summary" id="dashboardEodSummary">
-  <div class="dashboard-eod-titlebar">Today's Performance</div>
-  <div class="dashboard-eod-hub" id="dashEodHub">Hub</div>
-  <div class="dashboard-eod-date" id="dashEodDate">—</div>
-
-  <div class="dashboard-eod-panel dashboard-eod-summary-panel">
-    <div class="dashboard-eod-panel-title">Dashboard Summary</div>
-    <div class="dashboard-eod-rows">
-      <div><span>Total Dispatched</span><strong id="dashEodDispatched">—</strong></div>
-      <div><span>Total Delivered</span><strong id="dashEodDelivered">—</strong></div>
-      <div><span>Total Onhold</span><strong id="dashEodOnhold">—</strong></div>
-      <div><span>Total Redelivery</span><strong id="dashEodRedelivery">—</strong></div>
-      <div><span>Total RTS</span><strong id="dashEodRts">—</strong></div>
-    </div>
-  </div>
-
-  <div class="dashboard-eod-panel dashboard-eod-performance-panel">
-    <div class="dashboard-eod-panel-title">Delivery Performance</div>
-    <div class="dashboard-eod-rate" id="dashEodRate">—</div>
-  </div>
-
-  <div class="dashboard-eod-panel dashboard-eod-fleet-panel">
-    <div class="dashboard-eod-panel-title">Fleet Summary</div>
-    <div class="dashboard-eod-rows">
-      <div><span>3W</span><strong id="dashEodFleet3w">—</strong></div>
-      <div><span>2W</span><strong id="dashEodFleet2w">—</strong></div>
-      <div><span>Flexi</span><strong id="dashEodFleetFlexi">—</strong></div>
-      <div><span>Total Riders</span><strong id="dashEodTotalRiders">0</strong></div>
-    </div>
-  </div>
-
-  <div class="dashboard-eod-footer">
-    <span>EOD DATA</span>
-    
-  </div>
-</div>
 
 </section>
 
@@ -881,21 +831,12 @@ Only rows still marked Delivering will be updated. Missing/error results stay un
 <script>(function(){const m1=document.querySelector("#kpi .kpi-m1-sheet");const toggle=document.getElementById("m1Toggle");if(!m1||!toggle)return;m1.classList.add("m1-collapsed");const setState=open=>{m1.classList.toggle("m1-open",open);m1.classList.toggle("m1-collapsed",!open);toggle.setAttribute("aria-expanded",String(open));const em=toggle.querySelector("em");if(em)em.textContent=open?"▾ EXPANDED":"▸ COLLAPSED"};toggle.addEventListener("click",()=>setState(m1.classList.contains("m1-collapsed")));toggle.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setState(m1.classList.contains("m1-collapsed"))}});setState(false)})();
 </script>
 
-<div id="mobileDailyDataMenu" class="mobile-daily-data-menu" aria-hidden="true">
-  <button type="button" data-mobile-page="dailyPickup">Pickup</button>
-  <button type="button" data-mobile-page="dailyPerformance">Performance</button>
-  
-  <button type="button" data-mobile-page="dailyConsolidated">Consolidated</button>
-  <button type="button" data-mobile-page="dailyEod">EOD Data</button>
-</div>
 <nav id="mobileBottomNav" class="mobile-bottom-nav" aria-label="Mobile navigation">
   <button type="button" data-mobile-page="homeDashboard"><span class="mobile-ico">▣</span>Dashboard</button>
   <button type="button" data-mobile-page="dashboard"><span class="mobile-ico">▦</span>Parcel Count</button>
   <button type="button" data-mobile-page="linehaul"><span class="mobile-ico">⇄</span>Linehaul Task</button>
   <button type="button" data-mobile-page="receivedChecking"><span class="mobile-ico">✓</span>Received</button>
   <button type="button" data-mobile-page="podPoohChecker"><span class="mobile-ico">◎</span>POD/POOH</button>
-  <button type="button" id="mobileDailyDataToggle" class="mobile-daily-toggle" aria-expanded="false"><span class="mobile-ico">▤</span>Daily Data</button>
-  <button type="button" data-mobile-page="dailyHistory"><span class="mobile-ico">◷</span>Daily History</button>
   <button type="button" data-mobile-page="kpi"><span class="mobile-ico">▣</span>KPI</button>
   <button type="button" data-mobile-page="instructions"><span class="mobile-ico">☷</span>Instructions</button>
   <button type="button" data-mobile-page="settings"><span class="mobile-ico">⚙</span>Settings</button>
