@@ -35,7 +35,7 @@
 
   const PAGE_SOURCE = "BADOC_SPX_BRIDGE";
   const BADOC_SOURCE = "BADOC_PAGE";
-  const VERSION = "73";
+  const VERSION = "74";
   let port = null;
   let reconnectTimer = null;
   let shuttingDown = false;
@@ -154,19 +154,17 @@
       "BADOC_START_PARCEL_INBOUND_SYNC",
       "BADOC_START_RECEIVED_CHECKING_INBOUND_SYNC",
       "BADOC_START_PARCEL_SECONDARY_SYNC",
-      "BADOC_ABORT_SYNC",
-      "BADOC_LOOKUP_RECIPIENT_NAMES"
+      "BADOC_ABORT_SYNC"
     ]);
     if (!supported.has(data.type)) return;
     if (!port || !backgroundConfirmed) {
-      const errorKind = data.type === "BADOC_LOOKUP_RECIPIENT_NAMES" ? "recipient-names" :
-        data.type === "BADOC_START_DELIVERING_RECONCILE" ? "delivering-reconcile" :
+      const errorKind = data.type === "BADOC_START_DELIVERING_RECONCILE" ? "delivering-reconcile" :
         data.type === "BADOC_START_PARCEL_SECONDARY_SYNC" ? "parcel-secondary" :
         data.type === "BADOC_START_PARCEL_DELIVERY_SYNC" ? "parcel-delivery" :
         data.type === "BADOC_START_LINEHAUL_SYNC" ? "linehaul" :
         data.type === "BADOC_START_RIDER_SYNC" ? "rider" : "parcel-inbound";
       emit("BADOC_SPX_ERROR", {
-        message: "Bacarra Hub Extension v73 is not connected. Reload the extension and refresh BACARRA HUB.",
+        message: "Bacarra Hub Extension v74 is not connected. Reload the extension and refresh BACARRA HUB.",
         kind: errorKind
       });
       return;
@@ -183,11 +181,6 @@
         for (const key of ["hubId","hubName","hubCode","trackingStatus","bulkyType","assignedStartUnix","assignedEndUnix","assignedStart","assignedEnd","assignedLabel","createdEndUnix"]) {
           if (data[key] !== undefined) payload[key] = data[key];
         }
-      }
-      if (data.type === "BADOC_LOOKUP_RECIPIENT_NAMES") {
-        payload.shipmentIds = Array.isArray(data.shipmentIds)
-          ? [...new Set(data.shipmentIds.map(v => String(v || "").trim()).filter(v => /^[A-Za-z0-9_-]{6,80}$/.test(v)))].slice(0, 2000)
-          : [];
       }
       port.postMessage(payload);
     } catch (error) {

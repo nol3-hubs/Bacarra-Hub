@@ -10,15 +10,15 @@
 ## Logic improvements taken from Badoc
 - Stay on the current page after automatic SPX imports; per-kind SPX sync progress.
 - Parcel cloud uploads tagged by source; serialized uploads; pending-write guards in cloud sync.
-- CFR1 pick-up-time fix; Dispatch recipient-name lookup and exemption sync.
+- CFR1 pick-up-time fix; Dispatch exemption sync (recipient-name lookup removed).
 ## Logic improvements added
 - Extension handshake only reports "installed" after the extension background confirms (no false positives).
-- Extension version is now 73 and checked with ">=" everywhere.
+- Extension version is now 74 and the Dispatch bridge requires v74 or newer.
 - Same-origin storage keys that collided with Badoc Hub were renamed to bacarra_*.
 
 ## Install
 1. Remove the old "SPX BRIDGE" extension, then load `extension/` (or the ZIP the app offers) in Chrome/Edge.
-2. Upload the folder to GitHub Pages and open it. First load may need a hard refresh (service worker cache v21).
+2. Upload the folder to GitHub Pages and open it. First load may need a hard refresh (service worker cache v22).
 
 ## Notes
 - Zone ID stays disabled (Bacarra rule); Badoc's zone picker was not ported.
