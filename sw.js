@@ -1,7 +1,7 @@
-const CACHE_NAME = 'bacarra-hub-pwa-v22-badoc-ui-v20-bridge-v74';
+const CACHE_NAME = 'bacarra-hub-pwa-v23-cleanup-bridge-v74-1';
 const APP_SHELL = [
   './index.html',
-  './manifest-bacarra-hub-round-v3.webmanifest',
+  './manifest.webmanifest',
   './icons/bacarra-hub-spx-round-v3-192.png',
   './icons/bacarra-hub-spx-round-v3-512.png'
 ];

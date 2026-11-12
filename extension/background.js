@@ -1790,8 +1790,6 @@ chrome.runtime.onConnect.addListener(port => {
   port.onDisconnect.addListener(() => {
     badocPorts.delete(port);
     for (const job of activeJobs.values()) if (job.ownerPort === port) job.cancelled = true;
-    const recipientLookup = recipientLookupByPort.get(port);
-    if (recipientLookup) recipientLookup.cancelled = true;
   });
 });
 
